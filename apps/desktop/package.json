@@ -1,0 +1,37 @@
+{
+  "name": "@deepseek-ai/dsh-desktop",
+  "description": "dsh desktop shell: an Electron window and tray around the dsh web server; the harness itself keeps running as the same dsh web process",
+  "version": "0.1.0-rc.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "apps/desktop"
+  },
+  "type": "module",
+  "main": "out/main.js",
+  "files": [
+    "out/*.js",
+    "assets"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "icons": "tsx scripts/generate-icons.ts",
+    "dev": "tsc -p tsconfig.json && electron .",
+    "pack": "tsc -p tsconfig.json && electron-builder --dir",
+    "dist": "tsc -p tsconfig.json && electron-builder",
+    "test:e2e": "vitest run --config vitest.desktop.config.ts"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.0",
+    "sharp": "^0.34.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

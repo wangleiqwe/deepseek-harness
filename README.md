@@ -34,6 +34,15 @@ pnpm run build
 pnpm dsh web
 ```
 
+### Desktop app
+
+A desktop shell (Electron window + tray) that supervises the same `dsh web`
+server lives at [`apps/desktop`](apps/desktop/README.md). From a checkout:
+
+```sh
+pnpm run dev:desktop
+```
+
 ## Community and support
 
 - Feel free to submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).

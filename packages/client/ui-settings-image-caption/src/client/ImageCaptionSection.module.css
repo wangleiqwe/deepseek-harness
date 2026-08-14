@@ -1,0 +1,63 @@
+/* Image-caption settings section, in the settings-panel design language.
+ * Every color resolves through a `--dsw-alias-*` token; bare names, which
+ * nothing in this app defines, would render light-mode literals and stay
+ * light under the dark theme. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 720px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.field {
+  width: 6.5rem;
+  flex-shrink: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.row select {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  border: 1px solid var(--dsw-alias-border-inverted);
+  border-radius: 8px;
+  padding: 0 8px;
+}
+
+.row select:disabled {
+  opacity: 0.5;
+}
+
+.row input[type='checkbox'] {
+  accent-color: var(--dsw-alias-brand-primary);
+}
+
+.hint {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-caption);
+}
+
+.loading {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--dsw-alias-state-error-primary);
+}

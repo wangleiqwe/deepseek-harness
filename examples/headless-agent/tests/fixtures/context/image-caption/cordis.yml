@@ -1,0 +1,40 @@
+# Test-only composition: the image-caption transform against a deterministic mock LLM.
+- id: image-caption-mock-llm
+  name: './mock-llm.ts'
+
+- id: attachments
+  name: '@deepseek-ai/dsh-attachment-local'
+  config:
+    dshHome: !!js process.cwd()
+
+- id: image-caption
+  name: '@deepseek-ai/dsh-image-caption'
+  config:
+    provider: image-caption-mock
+    model: image-caption-mock
+
+- id: subprocess
+  name: '@deepseek-ai/dsh-subprocess-local'
+
+- id: bash
+  name: '@deepseek-ai/dsh-bash-local'
+
+- id: agent-spine
+  name: '@deepseek-ai/dsh-agent-spine-demo'
+  config:
+    agents:
+      - id: main
+        provider: image-caption-mock
+        model: image-caption-mock
+        cwd: !!js process.cwd()
+    persona: 'Test the image-caption plugin.'
+    workspaceContext: false
+
+- id: persistence
+  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  config:
+    root: './.sessions'
+    compression: 'none'
+
+- id: checkpoint-policy
+  name: '@deepseek-ai/dsh-session-checkpoint-policy'

@@ -126,6 +126,8 @@ export interface ModelCatalogModel {
   description?: string
   /** Exact-route reasoning metadata when the adapter exposes it. */
   reasoning?: ModelReasoning
+  /** Accepted request modalities when the adapter declares them. */
+  inputModalities?: string[]
 }
 
 /** One provider and the models it advertised successfully. */

@@ -53,6 +53,13 @@ allowBuilds:
   # The Python runtime deploy includes the reviewed workspace postinstall that
   # restores the executable bit on node-pty's macOS spawn helper.
   '@deepseek-ai/dsh-subprocess-local@file:packages/subprocess/subprocess-local': true
+  electron: true
+  # The desktop shell packages with electron-builder's portable/NSIS targets;
+  # the Squirrel.Windows installer this transitive package serves is unused.
+  electron-winstaller: false
+  # Icon rasterization for apps/desktop; the script validates the prebuilt
+  # libvips binaries its platform packages ship.
+  sharp: true
 
 minimumReleaseAgeExclude:
   # Fresh pi-ai releases carry the model catalog updates that are the whole

@@ -66,6 +66,11 @@
       config:
         maxNoteBytes: 8192
 
+    # OpenCode Go 订阅额度:全局 opencode_go_usage 工具 + opencodeUsage Remote
+    # 命名空间(侧边栏与设置页 UI 的数据源)。密钥走 credentials 服务按请求解析。
+    - id: opencode-go-usage
+      name: '@deepseek-ai/dsh-opencode-go-usage'
+
     # Browser Session export: `/export` command plus the shared download dialog.
     - id: session-log-download
       name: '@deepseek-ai/dsh-session-log-export'
@@ -192,6 +197,9 @@
     - id: ui-settings-models
       name: '@deepseek-ai/dsh-client-ui-settings-models'
 
+    - id: ui-settings-image-caption
+      name: '@deepseek-ai/dsh-client-ui-settings-image-caption'
+
     - id: ui-settings-plugin-inventory
       name: '@deepseek-ai/dsh-client-ui-settings-plugin-inventory'
 
@@ -204,6 +212,10 @@
 
     - id: ui-cordis
       name: '@deepseek-ai/dsh-client-ui-cordis'
+
+    # OpenCode Go 额度:侧边栏底部指示灯 + 设置页「Go 套餐额度」。
+    - id: ui-opencode-go-usage
+      name: '@deepseek-ai/dsh-client-ui-opencode-go-usage'
 
     # Durable workflow lifecycle as an independent Chat node after the
     # existing generic workflow tool row.

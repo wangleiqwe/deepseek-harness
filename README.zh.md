@@ -34,6 +34,15 @@ pnpm run build
 pnpm dsh web
 ```
 
+### 桌面应用
+
+桌面壳（Electron 窗口 + 托盘）监督同一个 `dsh web` 服务器，位于
+[`apps/desktop`](apps/desktop/README.md)。在仓库中运行：
+
+```sh
+pnpm run dev:desktop
+```
+
 ## 社区与支持
 
 - 欢迎通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。
