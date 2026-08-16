@@ -78,6 +78,8 @@ function scriptedApi(overrides: {
       listDirectory: r => ok(r, { path: '/t', home: '/t', crumbs: [], entries: [], truncated: false }),
       createDirectory: r => ok(r, { path: '/t/new' }),
       openPath: r => ok(r, { opened: true as const }),
+      listFiles: r => ok(r, { root: '/t', files: [{ name: 'a.ts', rel: 'a.ts', path: '/t/a.ts', kind: 'file' }], truncated: false }),
+      listLevel: r => ok(r, { path: '/t', entries: [{ name: 'src', path: '/t/src', kind: 'directory', hidden: false }], truncated: false }),
       ...overrides.host,
     },
     workspace: {
@@ -237,6 +239,28 @@ describe('unary round trip', () => {
     expect(anchored.result.ok).toBe(true)
     const appended = await c.workspace.insertSessionBefore({ workspaceId: 'w1' as never, sessionId: sid('s1') })
     expect(appended.result.ok).toBe(true)
+  })
+
+  it('routes host.listFiles through the wire and rejects a blank root', async () => {
+    const c = client(scriptedApi())
+    const files = await c.host.listFiles({ path: '/t' })
+    expect(files.result).toEqual({
+      ok: true,
+      value: { root: '/t', files: [{ name: 'a.ts', rel: 'a.ts', path: '/t/a.ts', kind: 'file' }], truncated: false },
+    })
+    const blank = await c.host.listFiles({ path: '' })
+    expect(blank.result).toMatchObject({ ok: false, error: { code: 'bad-request' } })
+  })
+
+  it('routes host.listLevel through the wire and rejects a blank path', async () => {
+    const c = client(scriptedApi())
+    const level = await c.host.listLevel({ path: '/t' })
+    expect(level.result).toEqual({
+      ok: true,
+      value: { path: '/t', entries: [{ name: 'src', path: '/t/src', kind: 'directory', hidden: false }], truncated: false },
+    })
+    const blank = await c.host.listLevel({ path: '' })
+    expect(blank.result).toMatchObject({ ok: false, error: { code: 'bad-request' } })
   })
 
   it('routes the agent-preset roster and switch through the wire', async () => {

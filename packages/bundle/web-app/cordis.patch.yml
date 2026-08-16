@@ -95,6 +95,11 @@
     - id: directory-picker
       name: '@deepseek-ai/dsh-host-directory-picker-auto'
 
+    # Workspace file listing for the composer file references ('@' menu and
+    # the file-picker button); serves both directory-picker backends.
+    - id: file-browser
+      name: '@deepseek-ai/dsh-host-file-browser'
+
     # Read-only projection of current Loader entries for trusted client RPCs.
     - id: plugin-inventory
       name: '@deepseek-ai/dsh-host-plugin-inventory'
@@ -244,6 +249,11 @@
 
     - id: ui-subagent
       name: '@deepseek-ai/dsh-client-ui-subagent'
+
+    # Composer file references: the '@' file menu and the input-left
+    # multi-select file-picker button over the host file-browser row.
+    - id: ui-file-reference
+      name: '@deepseek-ai/dsh-client-ui-file-reference'
 
     # Background jobs: the session-header list over the jobsBySession mirror.
     - id: ui-jobs

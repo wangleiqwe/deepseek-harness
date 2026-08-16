@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod'
-import type { DirectoryEntry } from './host.ts'
+import type { DirectoryEntry, FileEntry, FileRef } from './host.ts'
 import type { RequestPayload, ResponseValue } from './rpc-map.ts'
 import type { Wire } from './rpc.schema.ts'
 
@@ -72,3 +72,43 @@ export const hostOpenPathRequestSchema = z.object({
 export const hostOpenPathValueSchema = z.object({
   opened: z.literal(true),
 }) satisfies z.ZodType<Wire<ResponseValue<'host.openPath'>>>
+
+/** File row shared by file-listing values. */
+export const fileRefSchema = z.object({
+  name: z.string(),
+  rel: z.string(),
+  path: z.string(),
+  kind: z.enum(['file', 'directory']),
+}) satisfies z.ZodType<Wire<FileRef>>
+
+/** host.listFiles request payload: the fully qualified root to walk. */
+export const hostListFilesRequestSchema = z.object({
+  path: z.string().min(1),
+}) satisfies z.ZodType<Wire<RequestPayload<'host.listFiles'>>>
+
+/** host.listFiles response value. */
+export const hostListFilesValueSchema = z.object({
+  root: z.string(),
+  files: z.array(fileRefSchema),
+  truncated: z.boolean(),
+}) satisfies z.ZodType<Wire<ResponseValue<'host.listFiles'>>>
+
+/** One row of a one-level listing. */
+export const fileEntrySchema = z.object({
+  name: z.string(),
+  path: z.string(),
+  kind: z.enum(['file', 'directory']),
+  hidden: z.boolean(),
+}) satisfies z.ZodType<Wire<FileEntry>>
+
+/** host.listLevel request payload: the fully qualified directory to list. */
+export const hostListLevelRequestSchema = z.object({
+  path: z.string().min(1),
+}) satisfies z.ZodType<Wire<RequestPayload<'host.listLevel'>>>
+
+/** host.listLevel response value. */
+export const hostListLevelValueSchema = z.object({
+  path: z.string(),
+  entries: z.array(fileEntrySchema),
+  truncated: z.boolean(),
+}) satisfies z.ZodType<Wire<ResponseValue<'host.listLevel'>>>

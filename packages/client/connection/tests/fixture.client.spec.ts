@@ -543,6 +543,50 @@ describe('createFixtureApi', () => {
     expect(root.result.value.entries).toContainEqual({ name: 'srv', path: '/srv', hidden: false })
   })
 
+  it('listFiles serves the seeded workspace tree with the host skip rules', async () => {
+    const api = createFixtureApi()
+    const listed = await api.host.listFiles(req({ path: '/tmp/fixture' }), new AbortController().signal)
+    if (!listed.result.ok) throw new Error('list failed')
+    expect(listed.result.value).toEqual({
+      root: '/tmp/fixture',
+      files: [
+        { name: 'README.md', rel: 'README.md', path: '/tmp/fixture/README.md', kind: 'file' },
+        { name: 'docs', rel: 'docs', path: '/tmp/fixture/docs', kind: 'directory' },
+        { name: 'package.json', rel: 'package.json', path: '/tmp/fixture/package.json', kind: 'file' },
+        { name: 'src', rel: 'src', path: '/tmp/fixture/src', kind: 'directory' },
+        { name: 'guide.md', rel: 'docs/guide.md', path: '/tmp/fixture/docs/guide.md', kind: 'file' },
+        { name: 'deep', rel: 'src/deep', path: '/tmp/fixture/src/deep', kind: 'directory' },
+        { name: 'index.ts', rel: 'src/index.ts', path: '/tmp/fixture/src/index.ts', kind: 'file' },
+        { name: 'main.ts', rel: 'src/main.ts', path: '/tmp/fixture/src/main.ts', kind: 'file' },
+        { name: 'nested.ts', rel: 'src/deep/nested.ts', path: '/tmp/fixture/src/deep/nested.ts', kind: 'file' },
+      ],
+      truncated: false,
+    })
+    const unknown = await api.host.listFiles(req({ path: '/nope' }), new AbortController().signal)
+    expect(unknown.result).toMatchObject({ ok: false, error: { code: 'directory-unreadable' } })
+  })
+
+  it('listLevel serves one tree level with the same skip rules', async () => {
+    const api = createFixtureApi()
+    const root = await api.host.listLevel(req({ path: '/tmp/fixture' }), new AbortController().signal)
+    if (!root.result.ok) throw new Error('list failed')
+    expect(root.result.value).toEqual({
+      path: '/tmp/fixture',
+      entries: [
+        { name: 'README.md', path: '/tmp/fixture/README.md', kind: 'file', hidden: false },
+        { name: 'docs', path: '/tmp/fixture/docs', kind: 'directory', hidden: false },
+        { name: 'package.json', path: '/tmp/fixture/package.json', kind: 'file', hidden: false },
+        { name: 'src', path: '/tmp/fixture/src', kind: 'directory', hidden: false },
+      ],
+      truncated: false,
+    })
+    const src = await api.host.listLevel(req({ path: '/tmp/fixture/src' }), new AbortController().signal)
+    if (!src.result.ok) throw new Error('list failed')
+    expect(src.result.value.entries.map(entry => entry.name)).toEqual(['deep', 'index.ts', 'main.ts'])
+    const unknown = await api.host.listLevel(req({ path: '/nope' }), new AbortController().signal)
+    expect(unknown.result).toMatchObject({ ok: false, error: { code: 'directory-unreadable' } })
+  })
+
   it('workspace.list serves the resident account and create reuses on path collision', async () => {
     const api = createFixtureApi()
     const listed = await api.workspace.list(req({}))

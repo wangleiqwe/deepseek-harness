@@ -130,6 +130,20 @@ export class FakeApiClient implements IApiClient {
   onCreateDirectory: (payload: unknown) => Promise<RpcResponse<{ path: string }>> =
     () => Promise.resolve(ok({ path: '/home/fake/new' }))
 
+  onListFiles: (payload: unknown) => Promise<RpcResponse<{
+    root: string
+    files: { name: string; rel: string; path: string; kind: 'file' | 'directory' }[]
+    truncated: boolean
+  }>> =
+    () => Promise.resolve(ok({ root: '/home/fake', files: [{ name: 'a.ts', rel: 'a.ts', path: '/home/fake/a.ts', kind: 'file' }], truncated: false }))
+
+  onListLevel: (payload: unknown) => Promise<RpcResponse<{
+    path: string
+    entries: { name: string; path: string; kind: 'file' | 'directory'; hidden: boolean }[]
+    truncated: boolean
+  }>> =
+    () => Promise.resolve(ok({ path: '/home/fake', entries: [{ name: 'src', path: '/home/fake/src', kind: 'directory', hidden: false }], truncated: false }))
+
   private readonly muxConns: StreamConn<MuxFrame>[] = []
   private readonly hostConns: StreamConn<HostFrame>[] = []
   lastSearchSignal: AbortSignal | undefined
@@ -180,6 +194,8 @@ export class FakeApiClient implements IApiClient {
     listDirectory: (payload: unknown) => this.record('host.listDirectory', payload, this.onListDirectory(payload)),
     createDirectory: (payload: unknown) => this.record('host.createDirectory', payload, this.onCreateDirectory(payload)),
     openPath: (payload: unknown) => this.record('host.openPath', payload, this.onOpenPath(payload)),
+    listFiles: (payload: unknown) => this.record('host.listFiles', payload, this.onListFiles(payload)),
+    listLevel: (payload: unknown) => this.record('host.listLevel', payload, this.onListLevel(payload)),
   }
 
   // The archive-set field defaults at the binding below so list stubs keep

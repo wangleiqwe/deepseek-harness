@@ -14,6 +14,8 @@ import { CodeRuntime } from '@deepseek-ai/dsh-code-runtime'
 import type { CodeRunRequest, CodeRunResult } from '@deepseek-ai/dsh-code-runtime'
 import { CallId, LlmAdapter, LlmRuntime } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, LlmModelInfo, LlmResolvedModelInfo, StreamChunk } from '@deepseek-ai/dsh-llm'
+import { SettingsProvider, settingsNamespace } from '@deepseek-ai/dsh-settings'
+import z from '@deepseek-ai/schemastery'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime, { RUN_CODE_NAME } from '@deepseek-ai/dsh-tools'
 import type { Config as ToolConfig } from '@deepseek-ai/dsh-tools'
@@ -29,6 +31,7 @@ import {
   imageMediaTypeForPath,
   imageRefFromValue,
 } from '../src/read-image.ts'
+import type { ImageReadValue } from '../src/read-image.ts'
 
 /** 1x1 red PNG (valid signature, IHDR, IDAT). */
 const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC', 'base64')
@@ -65,6 +68,82 @@ class CatalogAdapter extends LlmAdapter {
   }
 }
 
+/**
+ * In-memory settings provider, mirroring the shared `MemorySettings` fixture
+ * (`packages/settings/settings/tests/memory.ts`), so tests can register the
+ * `image-caption` namespace. Only static registration + read is exercised here,
+ * so persist is a no-op.
+ */
+class TestSettings extends SettingsProvider {
+  get writable(): boolean {
+    return true
+  }
+
+  protected load(): Promise<Record<string, unknown>> {
+    return Promise.resolve({})
+  }
+
+  protected persist(): Promise<void> {
+    return Promise.resolve()
+  }
+}
+
+/** Schemastery validation for the `image-caption` namespace as the tests set it. */
+const CaptionSchema = z.object({
+  provider: z.string(),
+  model: z.string(),
+  prompt: z.string(),
+  maxTokens: z.number(),
+  onError: z.union([z.const('placeholder'), z.const('fail')]).default('placeholder'),
+  enabled: z.boolean(),
+})
+
+/** The caption text a {@link CaptionAdapter} deterministically streams for an image request. */
+const CAPTION_TEXT = 'a 1x1 red test image used to verify the read_image caption fallback'
+
+/** Exact-route fake adapter whose `stream` emits one deterministic text block. */
+class CaptionAdapter extends LlmAdapter {
+  constructor(private readonly caption = CAPTION_TEXT) {
+    super()
+  }
+
+  override listModels(_provider: string): Promise<readonly LlmModelInfo[]> {
+    return Promise.resolve([])
+  }
+
+  override resolveModel(provider: string, model: string): Promise<LlmResolvedModelInfo> {
+    return Promise.resolve({ provider, id: model, name: model, inputModalities: ['text', 'image'] })
+  }
+
+  override async * stream(_options: GenerateOptions): AsyncIterable<StreamChunk> {
+    const text = this.caption
+    yield { type: 'block-start', index: 0, blockType: 'text' }
+    yield { type: 'text-delta', index: 0, text }
+    yield { type: 'block-end', index: 0, block: { type: 'text', text } }
+    yield { type: 'usage', usage: { inputTokens: 1, outputTokens: 1 } }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+}
+
+/** A `CaptionAdapter` whose stream surfaces as a step error, like `CatalogAdapter`. */
+class FailingCaptionAdapter extends LlmAdapter {
+  override listModels(_provider: string): Promise<readonly LlmModelInfo[]> {
+    return Promise.resolve([])
+  }
+
+  override resolveModel(provider: string, model: string): Promise<LlmResolvedModelInfo> {
+    return Promise.resolve({ provider, id: model, name: model, inputModalities: ['text', 'image'] })
+  }
+
+  override stream(_options: GenerateOptions): AsyncIterable<StreamChunk> {
+    return (async function* fail() {
+      yield { type: 'block-start', index: 0, blockType: 'text' }
+      yield { type: 'text-delta', index: 0, text: 'partial' }
+      throw new Error('vision route unreachable')
+    })()
+  }
+}
+
 /** In-process Code Mode seam fake that invokes the real registry bindings. */
 class FakeRuntime extends CodeRuntime {
   readonly language = 'typescript'
@@ -95,6 +174,18 @@ interface SetupOptions {
   llm?: boolean
   storeConfig?: { maxImageBytes?: number; maxImagePixels?: number; maxMessageImageBytes?: number }
   toolMode?: ToolConfig['mode']
+  /**
+   * Mount an in-memory settings provider, register the `image-caption`
+   * namespace, and register a streaming vision adapter under the `cap`
+   * provider. When undefined, no settings service exists (the fallback stays
+   * inert and read_image refuses text-only routes as before).
+   */
+  caption?: {
+    enabled?: boolean
+    onError?: 'placeholder' | 'fail'
+    /** Emit a placeholder instead of {@link CAPTION_TEXT} to simulate a failed stream. */
+    fail?: boolean
+  }
 }
 
 async function setup(options: SetupOptions = {}) {
@@ -116,6 +207,24 @@ async function setup(options: SetupOptions = {}) {
       { provider: 'visual', id: 'text-model', name: 'Text', inputModalities: ['text'] },
       { provider: 'visual', id: 'legacy-model', name: 'Legacy' },
     ], options.resolvedModels))
+    if (options.caption !== undefined) {
+      ctx.llm.registerAdapter(['cap'], options.caption.fail
+        ? new FailingCaptionAdapter()
+        : new CaptionAdapter())
+    }
+  }
+  if (options.caption !== undefined) {
+    await ctx.plugin(TestSettings)
+    const settings = ctx.get('settings')
+    if (settings === undefined) throw new Error('expected the settings service')
+    settings.register(settingsNamespace('image-caption'), CaptionSchema, {
+      base: {
+        enabled: options.caption.enabled ?? true,
+        provider: 'cap',
+        model: 'vision',
+        ...options.caption.onError === undefined ? {} : { onError: options.caption.onError },
+      },
+    })
   }
   await ctx.plugin(ToolFs)
   return ctx
@@ -248,6 +357,128 @@ describe('read_image happy path', () => {
       type: 'image',
       attachment: { mediaType: 'image/png', width: 1, height: 1 },
     })
+  })
+})
+
+describe('read_image caption fallback for text-only routes', () => {
+  it('describes the image through the configured vision route and persists the bytes', async () => {
+    await writeFile(join(dir, 'red.png'), PNG_1X1)
+    const ctx = await setup({ caption: {} })
+    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('text-model'))
+
+    expect(result.isError).toBe(false)
+    // The model-facing result is two text blocks: the metadata envelope plus
+    // the caption — no image block for a text-only main model.
+    expect(result.content).toHaveLength(2)
+    expect(result.content.every(block => block.type === 'text')).toBe(true)
+    const content = text(result)
+    expect(content).toContain(formatImageReadOutput(join(dir, 'red.png'), {
+      attachmentId: (result.value as unknown as ImageReadValue).image.attachmentId,
+      mediaType: 'image/png',
+      bytes: PNG_1X1.length,
+      width: 1,
+      height: 1,
+    }))
+    expect(content).toContain('The user attached an image to this message. Its content is described below (vision-model generated):')
+    expect(content).toContain(CAPTION_TEXT)
+    // The canonical value reports the caption next to the durable image ref.
+    const value = result.value as unknown as ImageReadValue
+    expect(value.caption).toContain(CAPTION_TEXT)
+
+    // The bytes were still committed through the attachment service.
+    const attachments = ctx.get('attachments')
+    if (attachments === undefined) throw new Error('expected the attachment service')
+    const stored = await attachments.readImage(imageRefFromValue(value.image))
+    expect(Buffer.from(stored.data)).toEqual(PNG_1X1)
+  })
+
+  it('forwards the caption through a nested Code Mode dispatch', async () => {
+    await writeFile(join(dir, 'red.png'), PNG_1X1)
+    const ctx = await setup({ toolMode: 'code', caption: {} })
+    const runtime = ctx.codeRuntime as FakeRuntime
+    runtime.behavior = async (request) => {
+      const value = await request.bindings[0]!.functions.read_image!({ file_path: 'red.png' })
+      return { logs: [], value }
+    }
+
+    const result = await call(ctx, RUN_CODE_NAME, {
+      code: 'return await tools.read_image({ file_path: "red.png" })',
+      description: 'Read the image through Code Mode',
+    }, agentOn('text-model'))
+
+    expect(result.isError).toBe(false)
+    expect(result.content.every(block => block.type === 'text')).toBe(true)
+    expect(result.additionalContexts).toHaveLength(1)
+    const forwarded = result.additionalContexts?.[0]?.content
+    expect(forwarded).toHaveLength(2)
+    expect(forwarded?.every(block => block.type === 'text')).toBe(true)
+    const forwardedText = forwarded?.map(block => block.type === 'text' ? block.text : '').join('')
+    expect(forwardedText).toContain(CAPTION_TEXT)
+  })
+
+  it.each([
+    ['an unregistered namespace', undefined],
+    ['a disabled configuration', { enabled: false }],
+  ])('refuses on %s', async (_label, captioned) => {
+    await writeFile(join(dir, 'red.png'), PNG_1X1)
+    const ctx = await setup(captioned === undefined ? {} : { caption: captioned })
+    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('text-model'))
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('does not declare image input')
+  })
+
+  it('refuses when provider/model are missing from an enabled configuration', async () => {
+    await writeFile(join(dir, 'red.png'), PNG_1X1)
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime, { mode: 'native' })
+    await ctx.plugin(LocalFileSystem, { cwd: dir })
+    await ctx.plugin(FsPolicy)
+    await ctx.plugin(LocalAttachmentStore, { dshHome: home })
+    await ctx.plugin(LlmRuntime)
+    ctx.llm.registerAdapter(['visual'], new CatalogAdapter([
+      { provider: 'visual', id: 'text-model', name: 'Text', inputModalities: ['text'] },
+    ]))
+    await ctx.plugin(TestSettings)
+    const settings = ctx.get('settings')
+    if (settings === undefined) throw new Error('expected the settings service')
+    // Enabled but unrouted: no provider/model, so the refus-fallback path rejects.
+    settings.register(settingsNamespace('image-caption'), CaptionSchema, { base: { enabled: true } })
+    await ctx.plugin(ToolFs)
+
+    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('text-model'))
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('does not declare image input')
+  })
+
+  it('falls back to the placeholder text when the caption stream fails under onError=placeholder', async () => {
+    await writeFile(join(dir, 'red.png'), PNG_1X1)
+    const ctx = await setup({ caption: { fail: true, onError: 'placeholder' } })
+    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('text-model'))
+    expect(result.isError).toBe(false)
+    expect(result.content).toHaveLength(2)
+    expect(result.content.every(block => block.type === 'text')).toBe(true)
+    const content = text(result)
+    expect(content).toContain('image recognition failed')
+    expect(content).toContain('UNKNOWN')
+  })
+
+  it('surfaces the failure as an error result under onError=fail', async () => {
+    await writeFile(join(dir, 'red.png'), PNG_1X1)
+    const ctx = await setup({ caption: { fail: true, onError: 'fail' } })
+    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('text-model'))
+    expect(result.isError).toBe(true)
+  })
+
+  it('returns the image block itself when an image-capable main model is used even with a caption configured', async () => {
+    await writeFile(join(dir, 'red.png'), PNG_1X1)
+    const ctx = await setup({ caption: {} })
+    const result = await readImage(ctx, { file_path: 'red.png' }, agentOn('vision-model'))
+    expect(result.isError).toBe(false)
+    expect(result.content).toHaveLength(2)
+    const image = result.content[1] as { type: string; attachment: ImageAttachmentRef }
+    expect(image.type).toBe('image')
+    expect((result.value as unknown as ImageReadValue).caption).toBeUndefined()
   })
 })
 

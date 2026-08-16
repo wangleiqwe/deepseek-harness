@@ -19,9 +19,10 @@ describe('committed icon assets', () => {
     expect(pngSize(`${ASSETS_DIR}/icon-16.png`)).toEqual({ width: 16, height: 16 })
   })
 
-  it('ships white tray variants that differ from the black mark', () => {
+  it('ships black tray variants identical to the mark', () => {
     expect(pngSize(`${ASSETS_DIR}/tray-16.png`)).toEqual({ width: 16, height: 16 })
     expect(pngSize(`${ASSETS_DIR}/tray-32.png`)).toEqual({ width: 32, height: 32 })
-    expect(readFileSync(`${ASSETS_DIR}/tray-16.png`)).not.toEqual(readFileSync(`${ASSETS_DIR}/icon-16.png`))
+    expect(readFileSync(`${ASSETS_DIR}/tray-16.png`)).toEqual(readFileSync(`${ASSETS_DIR}/icon-16.png`))
+    expect(readFileSync(`${ASSETS_DIR}/tray-32.png`)).toEqual(readFileSync(`${ASSETS_DIR}/icon-32.png`))
   })
 })

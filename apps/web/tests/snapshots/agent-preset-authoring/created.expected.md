@@ -7,9 +7,15 @@
     - button "模型":
       - img
       - text: 模型
+    - button "Go 套餐额度":
+      - img
+      - text: Go 套餐额度
     - button "插件":
       - img
       - text: 插件
+    - button "图片识别":
+      - img
+      - text: 图片识别
     - button "Agent 预设":
       - img
       - text: Agent 预设
@@ -78,7 +84,7 @@
         - text: 删除
       - paragraph:
         - text: 预设文件：
-        - code: {{presetRoot}}/my-agent
+        - code: C:\Users\Administrator\AppData\Local\Temp\dsh-web-e2e-presets-keVZkQ\my-agent
   - button "用「创造模式」创作自定义预设":
     - img
     - text: 用「创造模式」创作自定义预设

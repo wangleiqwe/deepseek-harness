@@ -2,7 +2,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {
-  DirectoryListing, IApiClient, RpcError,
+  DirectoryListing, FileListing, IApiClient, LevelListing, RpcError,
   SessionId, WorkspaceId, WorkspaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SnapshotStore } from '../contract/store.ts'
@@ -44,6 +44,14 @@ export class DirectoryBrowseError extends Error {
   constructor(readonly rpcError: RpcError) {
     super(`directory browse failed: ${rpcError.code}: ${rpcError.message}`)
     this.name = 'DirectoryBrowseError'
+  }
+}
+
+/** Structured file-listing failure so the file-reference surfaces can branch on Host business codes. */
+export class FileBrowseError extends Error {
+  constructor(readonly rpcError: RpcError) {
+    super(`file listing failed: ${rpcError.code}: ${rpcError.message}`)
+    this.name = 'FileBrowseError'
   }
 }
 
@@ -223,6 +231,32 @@ export class WorkspaceRuntime implements IWorkspaces {
   async listDirectory(path?: string, signal?: AbortSignal): Promise<DirectoryListing> {
     const response = await this.api.host.listDirectory(path === undefined ? {} : { path }, signal)
     if (!response.result.ok) throw new DirectoryBrowseError(response.result.error)
+    return response.result.value
+  }
+
+  /**
+   * List the files under one root, bounded, through the Host's file-browser
+   * capability (the composer file-reference source).
+   * @param path - fully qualified root directory to walk.
+   * @param signal - aborts the wire request (and the Host's walk) when the caller supersedes it.
+   * @returns the bounded listing with root-relative file paths.
+   */
+  async listFiles(path: string, signal?: AbortSignal): Promise<FileListing> {
+    const response = await this.api.host.listFiles({ path }, signal)
+    if (!response.result.ok) throw new FileBrowseError(response.result.error)
+    return response.result.value
+  }
+
+  /**
+   * List one directory level through the Host's file-browser capability (the
+   * composer's expandable file tree).
+   * @param path - fully qualified directory to list.
+   * @param signal - aborts the wire request (and the Host's scan) when the caller supersedes it.
+   * @returns the level's entries, name-sorted.
+   */
+  async listLevel(path: string, signal?: AbortSignal): Promise<LevelListing> {
+    const response = await this.api.host.listLevel({ path }, signal)
+    if (!response.result.ok) throw new FileBrowseError(response.result.error)
     return response.result.value
   }
 

@@ -1577,6 +1577,12 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
       'project', 'deepseek-iOS', 'deepseek-android', 'deepseek-platform',
       'deepseek-web', 'deepseek-harness', 'deepseek-app', 'deepseek-landing-blog',
     ]],
+    // The resident workspace tree: also browsable, and the file-browser
+    // fixture's directory skeleton.
+    ['/tmp/fixture', ['docs', 'src']],
+    ['/tmp/fixture/docs', []],
+    ['/tmp/fixture/src', ['deep']],
+    ['/tmp/fixture/src/deep', []],
   ])
   const childrenOf = (path: string): string[] | undefined => {
     const known = directoryTree.get(path)
@@ -1584,6 +1590,49 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
     const parent = path.slice(0, path.lastIndexOf('/')) || '/'
     const name = path.slice(path.lastIndexOf('/') + 1)
     return directoryTree.get(parent)?.includes(name) === true ? [] : undefined
+  }
+  // File leaves behind the workspace-root tree, mirroring the host
+  // file-browser skip rules for the keyless lanes: dot entries, node_modules,
+  // and .git are omitted; the tree is tiny so no walk ever truncates.
+  const fixtureProjectFiles = new Map<string, string[]>([
+    ['/tmp/fixture', ['package.json', 'README.md']],
+    ['/tmp/fixture/src', ['index.ts', 'main.ts']],
+    ['/tmp/fixture/src/deep', ['nested.ts']],
+    ['/tmp/fixture/docs', ['guide.md']],
+  ])
+  const fixtureFileRefs = (root: string): { name: string; rel: string; path: string; kind: 'file' | 'directory' }[] | undefined => {
+    if (childrenOf(root) === undefined && !fixtureProjectFiles.has(root)) return undefined
+    const rows: { name: string; rel: string; path: string; kind: 'file' | 'directory' }[] = []
+    const queue: { dir: string; relDir: string }[] = [{ dir: root, relDir: '' }]
+    while (queue.length > 0) {
+      const { dir, relDir } = queue.shift() as { dir: string; relDir: string }
+      const files = fixtureProjectFiles.get(dir) ?? []
+      const dirs = (childrenOf(dir) ?? []).filter(name => !name.startsWith('.') && name !== 'node_modules' && name !== '.git')
+      // Same breadth-first, name-sorted, files-and-directories interleaved
+      // order as the host walk.
+      for (const name of [...files, ...dirs].sort()) {
+        const rel = relDir === '' ? name : `${relDir}/${name}`
+        const path = dir === '/' ? `/${name}` : `${dir}/${name}`
+        const isDir = dirs.includes(name)
+        rows.push({ name, rel, path, kind: isDir ? 'directory' : 'file' })
+        if (isDir) queue.push({ dir: path, relDir: rel })
+      }
+    }
+    return rows
+  }
+  // One fixture tree level, same skip rules and row vocabulary as host.listLevel.
+  const fixtureLevelEntries = (path: string): { name: string; path: string; kind: 'file' | 'directory'; hidden: boolean }[] | undefined => {
+    if (childrenOf(path) === undefined && !fixtureProjectFiles.has(path)) return undefined
+    const files = fixtureProjectFiles.get(path) ?? []
+    const dirs = (childrenOf(path) ?? []).filter(name => !name.startsWith('.') && name !== 'node_modules' && name !== '.git')
+    const names = [...files, ...dirs].sort()
+    return names.map(name => ({
+      name,
+      path: path === '/' ? `/${name}` : `${path}/${name}`,
+      kind: dirs.includes(name) ? 'directory' : 'file',
+      // The fixture never emits dot entries (skip rules), so hidden is always false here.
+      hidden: false,
+    }))
   }
   const crumbsOf = (path: string): { name: string; path: string; hidden: boolean }[] => {
     const crumbs = [{ name: '/', path: '/', hidden: false }]
@@ -2562,6 +2611,28 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         return ok(request, { path: target })
       },
       openPath: request => ok(request, { opened: true as const }),
+      listFiles: (request) => {
+        const rows = fixtureFileRefs(request.payload.path)
+        if (rows === undefined) {
+          return err(request, {
+            code: 'directory-unreadable',
+            message: `cannot list files under ${request.payload.path}: not in the fixture tree`,
+            details: { path: request.payload.path },
+          })
+        }
+        return ok(request, { root: request.payload.path, files: rows, truncated: false })
+      },
+      listLevel: (request) => {
+        const entries = fixtureLevelEntries(request.payload.path)
+        if (entries === undefined) {
+          return err(request, {
+            code: 'directory-unreadable',
+            message: `cannot list ${request.payload.path}: not in the fixture tree`,
+            details: { path: request.payload.path },
+          })
+        }
+        return ok(request, { path: request.payload.path, entries, truncated: false })
+      },
     },
     workspace: {
       list: request => ok(request, {
@@ -3098,6 +3169,8 @@ export class FixtureApiClient extends AbstractApiClient {
       case 'host.listDirectory': return this.api.host.listDirectory(request, new AbortController().signal)
       case 'host.createDirectory': return this.api.host.createDirectory(request)
       case 'host.openPath': return this.api.host.openPath(request, new AbortController().signal)
+      case 'host.listFiles': return this.api.host.listFiles(request, new AbortController().signal)
+      case 'host.listLevel': return this.api.host.listLevel(request, new AbortController().signal)
       case 'workspace.list': return this.api.workspace.list(request)
       case 'workspace.create': return this.api.workspace.create(request)
       case 'workspace.rename': return this.api.workspace.rename(request)

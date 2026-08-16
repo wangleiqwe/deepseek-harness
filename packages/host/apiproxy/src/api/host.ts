@@ -32,6 +32,50 @@ export interface DirectoryListing {
   truncated: boolean
 }
 
+/** One row of a file listing: the absolute path plus its root-relative spelling. */
+export interface FileRef {
+  /** Base name shown in a picker row. */
+  name: string
+  /** Root-relative path, always forward-slash separated (the composer reference). */
+  rel: string
+  /** Absolute host path. */
+  path: string
+  /** Whether the row is a regular file or a directory. */
+  kind: 'file' | 'directory'
+}
+
+/** One bounded file listing under a root directory (files and directories). */
+export interface FileListing {
+  /** Absolute root that was listed. */
+  root: string
+  /** File and directory rows in breadth-first, name-sorted order. */
+  files: FileRef[]
+  /** True when the walk hit a bound and the result is incomplete. */
+  truncated: boolean
+}
+
+/** One row of a one-level listing. */
+export interface FileEntry {
+  /** Base name shown in a browser row. */
+  name: string
+  /** Absolute host path. */
+  path: string
+  /** Whether the row is a regular file or a directory. */
+  kind: 'file' | 'directory'
+  /** Hidden by the host platform's convention (dot-prefixed on POSIX). */
+  hidden: boolean
+}
+
+/** One bounded one-level listing. */
+export interface LevelListing {
+  /** Absolute path of the listed directory. */
+  path: string
+  /** Direct child rows, name-sorted. */
+  entries: FileEntry[]
+  /** True when the level hit its bound and the result is incomplete. */
+  truncated: boolean
+}
+
 /** Host-level unary methods. */
 export interface HostApi {
   /**
@@ -93,4 +137,27 @@ export interface HostApi {
     request: RpcRequest<{ path: string }>,
     signal: AbortSignal,
   ): Promise<RpcResponse<{ opened: true }>>
+
+  /**
+   * List the files under one root, bounded (the composer file-reference
+   * source). Served through `ctx.fileBrowser`; unreadable or non-qualified
+   * roots fail with `directory-unreadable`. The carrier's request signal
+   * follows the caller, stopping the backend's scan on disconnect or timeout.
+   */
+  listFiles(
+    request: RpcRequest<{ path: string }>,
+    signal: AbortSignal,
+  ): Promise<RpcResponse<FileListing>>
+
+  /**
+   * List one directory level (files and directories) for the composer's
+   * expandable file browser. Served through `ctx.fileBrowser`; unreadable or
+   * non-qualified paths fail with `directory-unreadable`. The carrier's
+   * request signal follows the caller, stopping the backend's scan on
+   * disconnect or timeout.
+   */
+  listLevel(
+    request: RpcRequest<{ path: string }>,
+    signal: AbortSignal,
+  ): Promise<RpcResponse<LevelListing>>
 }

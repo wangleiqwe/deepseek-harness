@@ -1,7 +1,7 @@
 /** Test-owned workspaces face: the renderer standard-kit observable plus recorded actions. */
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import type {
-  DirectoryListing, IWorkspaces, SessionId, SnapshotStore, WorkspaceId, WorkspaceListState, WorkspaceView,
+  DirectoryListing, FileListing, IWorkspaces, LevelListing, SessionId, SnapshotStore, WorkspaceId, WorkspaceListState, WorkspaceView,
 } from '@deepseek-ai/dsh-client-runtime/client'
 import { workspaceListState } from './fixtures.ts'
 import type { Stabilizer } from './fixtures.ts'
@@ -135,6 +135,34 @@ export class TestWorkspaces implements IWorkspaces {
       entries: [],
       truncated: false,
     }
+  }
+
+  /**
+   * Bounded file listing (recorded). The default serves an empty listing;
+   * stub to shape a tree.
+   * @param path - fully qualified root directory to walk.
+   * @param signal - aborts the wire request (and the Host's walk) when the caller supersedes it.
+   * @returns the bounded listing with root-relative file paths.
+   */
+  async listFiles(path: string, signal?: AbortSignal): Promise<FileListing> {
+    this.calls.push({ method: 'listFiles', args: [path, signal] })
+    const stub = this.stubs.get('listFiles')
+    if (stub !== undefined) return await (stub(path, signal) as Promise<FileListing>)
+    return { root: path, files: [], truncated: false }
+  }
+
+  /**
+   * One-level listing (recorded). The default serves an empty level; stub to
+   * shape a tree.
+   * @param path - fully qualified directory to list.
+   * @param signal - aborts the wire request (and the Host's scan) when the caller supersedes it.
+   * @returns the level's entries, name-sorted.
+   */
+  async listLevel(path: string, signal?: AbortSignal): Promise<LevelListing> {
+    this.calls.push({ method: 'listLevel', args: [path, signal] })
+    const stub = this.stubs.get('listLevel')
+    if (stub !== undefined) return await (stub(path, signal) as Promise<LevelListing>)
+    return { path, entries: [], truncated: false }
   }
 
   /**

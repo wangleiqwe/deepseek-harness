@@ -402,6 +402,30 @@ describe('workspaces', () => {
     await expect(runtime.workspaces.createDirectory('/x', 'made')).resolves.toBe('/x/made')
     await runtime.dispose()
   })
+
+  it('records the file-browser calls: empty listing and level defaults, stubs override', async () => {
+    const runtime = await runtimeWithFrame()
+    await expect(runtime.workspaces.listFiles('/w')).resolves.toEqual({ root: '/w', files: [], truncated: false })
+    await expect(runtime.workspaces.listLevel('/w')).resolves.toEqual({ path: '/w', entries: [], truncated: false })
+    const filesListing = { root: '/x', files: [{ name: 'a.ts', rel: 'a.ts', path: '/x/a.ts', kind: 'file' as const }], truncated: false }
+    const filesStub = vi.fn(() => Promise.resolve(filesListing as never))
+    const levelListing = { path: '/x', entries: [{ name: 'src', path: '/x/src', kind: 'directory' as const, hidden: false }], truncated: false }
+    const levelStub = vi.fn(() => Promise.resolve(levelListing as never))
+    runtime.workspaces.stub('listFiles', filesStub)
+    runtime.workspaces.stub('listLevel', levelStub)
+    const scan = new AbortController()
+    await expect(runtime.workspaces.listFiles('/x', scan.signal)).resolves.toEqual(filesListing)
+    await expect(runtime.workspaces.listLevel('/x', scan.signal)).resolves.toEqual(levelListing)
+    expect(filesStub).toHaveBeenLastCalledWith('/x', scan.signal)
+    expect(levelStub).toHaveBeenLastCalledWith('/x', scan.signal)
+    expect(runtime.workspaces.calls).toEqual([
+      { method: 'listFiles', args: ['/w', undefined] },
+      { method: 'listLevel', args: ['/w', undefined] },
+      { method: 'listFiles', args: ['/x', scan.signal] },
+      { method: 'listLevel', args: ['/x', scan.signal] },
+    ])
+    await runtime.dispose()
+  })
 })
 
 describe('feature mount and disposal', () => {

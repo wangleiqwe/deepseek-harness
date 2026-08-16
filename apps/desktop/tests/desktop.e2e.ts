@@ -13,18 +13,22 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 // The shell is spawned with stdio ignored: this lane must also run inside
 // harness sandboxes whose named-pipe boundary forbids piped child stdio.
 const APP_DIR = fileURLToPath(new URL('..', import.meta.url))
-const SMOKE_HTML = '<!doctype html><html><head><title>DSH Desktop Smoke</title></head><body><div id="dsh-smoke">ok</div></body></html>'
+const SMOKE_HTML = '<!doctype html><html><head><title>DSH Desktop Smoke</title></head><body><div id="root"><div id="dsh-smoke">ok</div></div></body></html>'
+const EMPTY_RENDERER_HTML = '<!doctype html><html><head><title>DSH Desktop Smoke</title></head><body><div id="root"><div>loading</div></div><script>setTimeout(() => document.body.replaceChildren(), 500)</script></body></html>'
 const STARTUP_DEADLINE_MS = 30_000
 
 let server: Server
 let url: string
 let userData: string
 let child: ChildProcess | null = null
+let electronPageLoads = 0
 
 beforeAll(async () => {
-  server = createServer((_request, response) => {
+  server = createServer((request, response) => {
+    const isElectronPage = /Electron/i.test(request.headers['user-agent'] ?? '')
+    if (isElectronPage) electronPageLoads++
     response.writeHead(200, { 'content-type': 'text/html' })
-    response.end(SMOKE_HTML)
+    response.end(isElectronPage && electronPageLoads === 1 ? EMPTY_RENDERER_HTML : SMOKE_HTML)
   })
   await new Promise<void>((resolve) => { server.listen(0, '127.0.0.1', () => { resolve() }) })
   const address = server.address()
@@ -95,9 +99,12 @@ async function waitForLog(substring: string): Promise<void> {
   }
 }
 
-it('attaches to the running server and loads it in the main window', async () => {
+it('loads the main window and recovers when its rendered content disappears', async () => {
   await waitForLog(`attached to running server: ${url}`)
   await waitForLog(`page loaded: ${url}`)
+  await waitForLog('renderer content empty')
+  await waitForLog('renderer recovery complete')
+  expect(electronPageLoads).toBeGreaterThanOrEqual(2)
   // The env-provided userData must be adopted (no files under the default profile).
   expect(await desktopLog()).toContain('desktop shell starting')
 })

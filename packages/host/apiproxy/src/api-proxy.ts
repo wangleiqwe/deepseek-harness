@@ -27,6 +27,10 @@ import {
   workspaceDomainState, workspaceRecord, WorkspaceId as brandWorkspaceId,
   WorkspaceMoveInvalidError, WorkspaceOrderInvalidError, WorkspaceUnknownSessionError,
 } from '@deepseek-ai/dsh-workspace'
+// Type-only: brings the `ctx.fileBrowser` Context merge into this program;
+// the resolver delegates to the composed file-browser seam.
+import { FileBrowserError } from '@deepseek-ai/dsh-host-file-browser'
+import type {} from '@deepseek-ai/dsh-host-file-browser'
 // Type-only: brings the `ctx.tools` Context merge into this program (viewFor reads presenters).
 import {
   InvalidPresetIdError, PresetExistsError, PresetMountError,
@@ -126,6 +130,25 @@ const DEFAULT_MAX_MESSAGES = 50
 const WEB_SETTINGS_NAMESPACES = [
   'agent-loop', 'shell', 'locale', 'permission', 'ui-conversation', 'ui-theme', 'web-search-deepseek', 'image-caption',
 ] as const
+
+/** Settings namespace the image-caption transform registers when mounted. */
+const IMAGE_CAPTION_SETTINGS_NAMESPACE = settingsNamespace('image-caption')
+
+/**
+ * Whether the mounted image-caption transform is enabled: the namespace
+ * resolves to its composition base plus the user layer, and anything but an
+ * explicit `enabled: false` means pasted images are captioned before the main
+ * model sees them.
+ * @param ctx - the proxy context; absence of the settings service or the
+ *   namespace answers false (no transform can run).
+ */
+function imageCaptionEnabled(ctx: Context): boolean {
+  const settings = ctx.get('settings')
+  if (settings === undefined) return false
+  const resolved = settings.get(IMAGE_CAPTION_SETTINGS_NAMESPACE)
+  if (resolved === undefined) return false
+  return (resolved as { enabled?: unknown }).enabled !== false
+}
 
 /** Provider work budget: at most 100 calls and 2,000 inspected hits. */
 const SESSION_SEARCH_PROVIDER_CALL_LIMIT = 100
@@ -2486,7 +2509,8 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
             if (hasImage) {
               const current = selectionFor(agent).current
               const modelInfo = await ctx.llm.resolveModelInfo(current.provider, current.model)
-              if (modelInfo.inputModalities !== undefined && !modelInfo.inputModalities.includes('image')) {
+              if (modelInfo.inputModalities !== undefined && !modelInfo.inputModalities.includes('image')
+                && !imageCaptionEnabled(ctx)) {
                 return err(request, {
                   code: 'attachment-error',
                   message: `Model "${current.model}" does not support image input.`,
@@ -3008,6 +3032,58 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
 
       async openPath(request, signal) {
         return openPath(request, request.payload.path, signal)
+      },
+
+      async listFiles(request, signal) {
+        try {
+          // The carrier's signal follows the caller: a disconnect or timeout
+          // stops the backend's walk instead of outliving it.
+          return ok(request, await ctx.fileBrowser.listFiles(request.payload.path, signal))
+        } catch (error: unknown) {
+          // An abort is the caller's own timeout/disconnect, not a server
+          // failure — same code pickDirectory and command.execute report.
+          if (signal.aborted) {
+            return err(request, { code: 'cancelled', message: 'file listing was aborted', details: {} })
+          }
+          if (error instanceof FileBrowserError) {
+            return err(request, {
+              code: error.code,
+              message: error.message,
+              details: { path: error.path },
+            })
+          }
+          return err(request, {
+            code: 'internal',
+            message: `file listing failed: ${error instanceof Error ? error.message : String(error)}`,
+            details: {},
+          })
+        }
+      },
+
+      async listLevel(request, signal) {
+        try {
+          // The carrier's signal follows the caller: a disconnect or timeout
+          // stops the backend's level scan instead of outliving it.
+          return ok(request, await ctx.fileBrowser.listLevel(request.payload.path, signal))
+        } catch (error: unknown) {
+          // An abort is the caller's own timeout/disconnect, not a server
+          // failure — same code pickDirectory and command.execute report.
+          if (signal.aborted) {
+            return err(request, { code: 'cancelled', message: 'directory level listing was aborted', details: {} })
+          }
+          if (error instanceof FileBrowserError) {
+            return err(request, {
+              code: error.code,
+              message: error.message,
+              details: { path: error.path },
+            })
+          }
+          return err(request, {
+            code: 'internal',
+            message: `directory level listing failed: ${error instanceof Error ? error.message : String(error)}`,
+            details: {},
+          })
+        }
       },
     },
 

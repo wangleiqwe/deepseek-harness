@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-opencode-go-usage/README.md
-README.md: 6043330871908daadec68ad494988b733209b0d6
-README.zh.md: f7e2028d03aae94b0fb7148a93c565a9970d0c0b
+README.md: 70875f7b7d15ebfa81b8e4d47a255f9ac24d80c9
+README.zh.md: 79eef30d9bcedb51f8c2835800dac4a4eb47e251

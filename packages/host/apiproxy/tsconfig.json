@@ -15,6 +15,15 @@
       "path": "../../settings/settings"
     },
     {
+      "path": "../../settings/settings-file"
+    },
+    {
+      "path": "../../attachment/attachment-local"
+    },
+    {
+      "path": "../../context/image-caption"
+    },
+    {
       "path": "../../credentials/credentials"
     },
     {
@@ -91,6 +100,9 @@
     },
     {
       "path": "../directory-picker"
+    },
+    {
+      "path": "../file-browser"
     },
     {
       "path": "../../extensions/cordis-host-runner"

@@ -30,6 +30,14 @@ const WINDOW_ICON = join(ASSETS_DIR, 'icon-256.png')
 const TRAY_ICON = join(ASSETS_DIR, 'tray-16.png')
 /** Node binary for checkout-local server spawns; a PATH name, never Electron's own process.execPath. */
 const NODE_EXECUTABLE = 'node'
+const RENDERER_HEALTH_INTERVAL_MS = 5_000
+const RENDERER_HEALTH_TIMEOUT_MS = 3_000
+const RENDERER_FAILURE_LIMIT = 2
+
+// Some Windows GPU drivers can lose Electron's compositor surface after the
+// window is hidden or restored, leaving a black/white window until a reload.
+// The desktop shell is lightweight, so software rendering is the safer default.
+app.disableHardwareAcceleration()
 
 const supervisor = new ServerSupervisor()
 let mainWindow: BrowserWindow | null = null
@@ -132,6 +140,7 @@ async function createWindow(config: DesktopConfig): Promise<void> {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
+      backgroundThrottling: false,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -158,14 +167,103 @@ async function createWindow(config: DesktopConfig): Promise<void> {
     event.preventDefault()
     void shell.openExternal(target)
   })
+  wireRendererRecovery(win)
+  let loadRetryCount = 0
   win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
     if (!isMainFrame || errorCode === -3) return
     log(`page load failed (${String(errorCode)} ${errorDescription}): ${validatedURL}`)
+    if (loadRetryCount < 10 && !win.isDestroyed()) {
+      loadRetryCount++
+      log(`retrying page load (attempt ${String(loadRetryCount)})...`)
+      setTimeout(() => {
+        if (!win.isDestroyed()) void win.loadURL(activeUrl)
+      }, 800)
+      return
+    }
     win.show()
   })
   win.once('ready-to-show', () => { win.show() })
   await win.loadURL(activeUrl)
   log(`page loaded: ${activeUrl}`)
+}
+
+/** Detect a renderer that is alive but has lost the entire app tree, and recover it. */
+function wireRendererRecovery(win: BrowserWindow): void {
+  let consecutiveFailures = 0
+  let probeRunning = false
+  let recoveryRunning = false
+
+  const recover = async (reason: string): Promise<void> => {
+    if (recoveryRunning || quitting || win.isDestroyed()) return
+    recoveryRunning = true
+    consecutiveFailures = 0
+    log(`${reason}; reloading renderer`)
+    try {
+      await win.loadURL(activeUrl)
+      log('renderer recovery complete')
+    } catch (error) {
+      log(`renderer recovery failed: ${describe(error)}`)
+    } finally {
+      recoveryRunning = false
+    }
+  }
+
+  const probe = async (): Promise<void> => {
+    if (probeRunning || recoveryRunning || win.isDestroyed() || win.webContents.isLoadingMainFrame()) return
+    probeRunning = true
+    try {
+      const healthPromise = win.webContents.executeJavaScript(`(() => {
+        const root = document.getElementById('root')
+        const bodyTextLength = document.body?.innerText?.trim().length ?? 0
+        const rootChildCount = root?.childElementCount ?? 0
+        return {
+          ready: document.readyState === 'complete',
+          empty: bodyTextLength === 0 && rootChildCount === 0,
+          bodyTextLength,
+          rootChildCount,
+        }
+      })()`)
+      const timeoutPromise = new Promise<null>((resolve) => {
+        const timeout = setTimeout(() => { resolve(null) }, RENDERER_HEALTH_TIMEOUT_MS)
+        timeout.unref()
+      })
+      const health = await Promise.race([healthPromise, timeoutPromise]) as {
+        ready: boolean
+        empty: boolean
+        bodyTextLength: number
+        rootChildCount: number
+      } | null
+
+      const failed = health === null || (health.ready && health.empty)
+      if (!failed) {
+        consecutiveFailures = 0
+        return
+      }
+      consecutiveFailures++
+      const detail = health === null
+        ? 'renderer health probe timed out'
+        : `renderer content empty (body=${String(health.bodyTextLength)}, root=${String(health.rootChildCount)})`
+      log(`${detail}, check ${String(consecutiveFailures)}/${String(RENDERER_FAILURE_LIMIT)}`)
+      if (consecutiveFailures >= RENDERER_FAILURE_LIMIT) await recover(detail)
+    } catch (error) {
+      log(`renderer health probe failed: ${describe(error)}`)
+    } finally {
+      probeRunning = false
+    }
+  }
+
+  const interval = setInterval(() => { void probe() }, RENDERER_HEALTH_INTERVAL_MS)
+  interval.unref()
+  win.once('closed', () => { clearInterval(interval) })
+  win.webContents.on('did-start-loading', () => { consecutiveFailures = 0 })
+  win.webContents.on('render-process-gone', (_event, details) => {
+    void recover(`renderer process gone (${details.reason}, exit ${String(details.exitCode)})`)
+  })
+  win.webContents.on('console-message', (details) => {
+    if (details.level === 'error') {
+      log(`renderer console error: ${details.message} (${details.sourceId}:${String(details.lineNumber)})`)
+    }
+  })
 }
 
 /** Create the tray icon with its context menu. */

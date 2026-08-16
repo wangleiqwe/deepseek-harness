@@ -17,6 +17,7 @@
     - img
     - text: workspace
   - treeitem "New Session" [selected]
+- button "OpenCode Go 套餐额度": Go …
 - button "Settings":
   - img
   - text: Settings
@@ -34,6 +35,8 @@
   - img
 - tooltip "Commands"
 - 'button "Access mode, current: Workspace Write"': Workspace Write
+- button "Reference workspace files":
+  - img
 - button "Select model, current DeepSeek-V4-Flash":
   - text: DeepSeek-V4-Flash
   - img

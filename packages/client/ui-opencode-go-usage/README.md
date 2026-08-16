@@ -11,6 +11,25 @@ Browser surface for the OpenCode Go subscription usage: the sidebar-foot indicat
 
 Both surfaces poll the Host once on mount and every 60 seconds; a failed read renders inline with a retry.
 
+## Installation
+
+This repository ships the row in the `dsh-web-app` bundle. A deployment outside this repository declares the dependency and mounts the row in its own `dsh.client` roster:
+
+```json
+// profile or bundle package.json
+"dependencies": {
+  "@deepseek-ai/dsh-client-ui-opencode-go-usage": "^0.1.0"
+}
+```
+
+```yaml
+# composition patch layer, beside the other dsh.client rows
+- id: ui-opencode-go-usage
+  name: '@deepseek-ai/dsh-client-ui-opencode-go-usage'
+```
+
+Prerequisites: the roster must include `dsh-client-ui-sidebar` and `dsh-client-ui-settings` (the two target slots), the `dsh-api-remotes` Client assembly must mount the `opencodeUsage` namespace (the matching `@deepseek-ai/dsh-opencode-go-usage` release), and the Host row of that package must be mounted in the host composition.
+
 ## Model Experience
 
 No model-visible surface: the package registers no tools, prompt sections, or model-visible events. It only adds the two additive slot entries above, which change no conversation or session content. Token and KV-cache effects: none.

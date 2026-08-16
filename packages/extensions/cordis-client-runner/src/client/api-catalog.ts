@@ -331,6 +331,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the level\'s listing with breadcrumb ancestry.',
       },
       {
+        signature: 'listFiles(path: string, signal?: AbortSignal): Promise<FileListing>',
+        description: 'List the files under one root, bounded, through the Host\'s file-browser capability (the composer file-reference source).',
+        parameters: [{ name: 'path', description: 'fully qualified root directory to walk.' }, { name: 'signal', description: 'aborts the wire request (and the Host\'s walk) when the caller supersedes it.' }],
+        returns: 'the bounded listing with root-relative file paths.',
+      },
+      {
         signature: 'createDirectory(path: string, name: string): Promise<string>',
         description: 'Create one child directory through the Host\'s `browse` capability.',
         parameters: [{ name: 'path', description: 'absolute existing parent directory.' }, { name: 'name', description: 'single non-blank path segment.' }],

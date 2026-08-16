@@ -159,6 +159,12 @@ function fakeApi(overrides: Partial<{ muxFrames: MuxFrame[]; hostFrames: HostFra
       async openPath(request) {
         return { rpcId: request.rpcId, result: { ok: true, value: { opened: true as const } } }
       },
+      async listFiles(request) {
+        return { rpcId: request.rpcId, result: { ok: true, value: { root: '/w', files: [{ name: 'a.ts', rel: 'a.ts', path: '/w/a.ts', kind: 'file' }], truncated: false } } }
+      },
+      async listLevel(request) {
+        return { rpcId: request.rpcId, result: { ok: true, value: { path: '/w', entries: [{ name: 'src', path: '/w/src', kind: 'directory', hidden: false }], truncated: false } } }
+      },
     },
     workspace: {
       async list(request) {
@@ -410,6 +416,24 @@ describe('unary round trip (handler ⇄ client, no network)', () => {
     expect(home.result).toMatchObject({ ok: true, value: { home: '/w' } })
     const created = await c.host.createDirectory({ path: '/w', name: 'fresh' })
     expect(created.result).toEqual({ ok: true, value: { path: '/w/new' } })
+  })
+
+  it('round-trips host.listFiles through the wire form', async () => {
+    const c = client()
+    const files = await c.host.listFiles({ path: '/w' })
+    expect(files.result).toEqual({
+      ok: true,
+      value: { root: '/w', files: [{ name: 'a.ts', rel: 'a.ts', path: '/w/a.ts', kind: 'file' }], truncated: false },
+    })
+  })
+
+  it('round-trips host.listLevel through the wire form', async () => {
+    const c = client()
+    const level = await c.host.listLevel({ path: '/w' })
+    expect(level.result).toEqual({
+      ok: true,
+      value: { path: '/w', entries: [{ name: 'src', path: '/w/src', kind: 'directory', hidden: false }], truncated: false },
+    })
   })
 
   it('round-trips host.openPath through the wire form', async () => {

@@ -68,8 +68,8 @@ userData 中的逐安装状态：`desktop.log`（外壳生命周期）、`server
 ## 图标
 
 鲸鱼标记取自 [`apps/web/public/favicon.svg`](../web/public/favicon.svg)：
-黑鲸透明底用于窗口、任务栏和打包应用图标（electron-builder 会把
-`assets/icon-512.png` 转换为多尺寸 `.ico`），反相为白色用于托盘。
+黑鲸透明底统一用于窗口、任务栏、托盘和打包应用图标（electron-builder 会把
+`assets/icon-512.png` 转换为多尺寸 `.ico`）。
 `assets/` 下的 PNG 已提交入库；favicon 变更后用
 `pnpm --filter @deepseek-ai/dsh-desktop run icons` 重新生成。
 

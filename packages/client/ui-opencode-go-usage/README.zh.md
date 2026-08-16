@@ -11,6 +11,25 @@ OpenCode Go 订阅额度的浏览器界面:侧边栏底部的指示灯(带浮层
 
 两个界面在挂载时读取一次,之后每 60 秒轮询;读取失败就地渲染并附重试按钮。
 
+## 安装
+
+本仓库已在 `dsh-web-app` bundle 中随附本行。仓库之外的部署在自己的组合中声明依赖并把本行挂进 `dsh.client` 名册:
+
+```json
+// profile or bundle package.json
+"dependencies": {
+  "@deepseek-ai/dsh-client-ui-opencode-go-usage": "^0.1.0"
+}
+```
+
+```yaml
+# composition patch layer, beside the other dsh.client rows
+- id: ui-opencode-go-usage
+  name: '@deepseek-ai/dsh-client-ui-opencode-go-usage'
+```
+
+前置条件:名册中需包含 `dsh-client-ui-sidebar` 与 `dsh-client-ui-settings`(两个目标 slot),`dsh-api-remotes` 的 Client 装配需挂载 `opencodeUsage` 命名空间(配套的 `@deepseek-ai/dsh-opencode-go-usage` release),且该包的 Host 行需挂在宿主组合中。
+
 ## 模型体验
 
 无模型可见界面:本包不注册工具、提示词段或模型可见事件,只添加上述两个增量 slot 入口,不改变任何对话或会话内容。token 与 KV-cache 影响:无。

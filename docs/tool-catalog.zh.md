@@ -670,7 +670,7 @@ pwsh 工具是 Windows 组合中 bash 执行器 seam 的 PowerShell 方言消费
 
 ### `read_image`
 
-读取 PNG/JPEG/WebP/GIF 文件并返回图像本身。要求当前模型接受图像输入。
+读取 PNG/JPEG/WebP/GIF 文件并返回图像本身。当当前模型无法接受图像输入时，会通过配置的图片识别视觉路径返回文字描述。
 
 ```json
 {

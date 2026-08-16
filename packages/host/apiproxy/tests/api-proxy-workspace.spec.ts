@@ -12,6 +12,8 @@ import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import { DirectoryPickerError } from '@deepseek-ai/dsh-host-directory-picker'
 import type { DirectoryPickerCapability } from '@deepseek-ai/dsh-host-directory-picker'
+import { FileBrowserError } from '@deepseek-ai/dsh-host-file-browser'
+import type { FileListing, LevelListing } from '@deepseek-ai/dsh-host-apiproxy/api'
 import WorkspaceRegistry from '@deepseek-ai/dsh-workspace'
 import type { HostFrame, WorkspaceId } from '@deepseek-ai/dsh-host-apiproxy/api'
 import type { RpcRequest, RpcResponse } from '@deepseek-ai/dsh-host-apiproxy/api/rpc'
@@ -64,6 +66,10 @@ async function harness(
   extras: {
     openPath?: (path: string, signal: AbortSignal) => Promise<void>
     canOpenPath?: () => boolean
+    fileBrowser?: {
+      listFiles: (path: string, signal: AbortSignal) => Promise<FileListing>
+      listLevel: (path: string, signal: AbortSignal) => Promise<LevelListing>
+    }
   } = {},
 ) {
   const ctx = new Context()
@@ -102,6 +108,13 @@ async function harness(
   // Structural picker fake: the gateway only reads capability(); a stable
   // object per harness mirrors the seam's stability contract.
   ctx.provide('directoryPicker', { capability: () => picker } as never)
+  // Structural file-browser fake: the gateway delegates to listFiles/listLevel only.
+  ctx.provide('fileBrowser', {
+    listFiles: extras.fileBrowser?.listFiles
+      ?? (() => { throw new Error('test harness has no fileBrowser stub') }),
+    listLevel: extras.fileBrowser?.listLevel
+      ?? (() => { throw new Error('test harness has no fileBrowser stub') }),
+  } as never)
   const api = createApiProxy(ctx, {
     defaultModelSelection: () => ({ provider: 'test', model: 'test-model' }),
     cwd: root,
@@ -225,6 +238,94 @@ describe('host.listDirectory / host.createDirectory', () => {
     expect((await api.host.createDirectory(request({ path: '/x', name: 'y' }))).result).toMatchObject({
       ok: false, error: { code: 'directory-picker-unavailable', details: { capability: 'native' } },
     })
+  })
+})
+
+describe('host.listFiles', () => {
+  const stub = (listFiles: (path: string, signal: AbortSignal) => Promise<FileListing>) =>
+    ({ listFiles, listLevel: async () => { throw new Error('unused') } })
+
+  it('serves a listing through the file-browser seam, forwarding the request signal', async () => {
+    const { api } = await harness(undefined, undefined, { fileBrowser: stub(async (path, signal) => {
+      expect(signal.aborted).toBe(false)
+      return {
+        root: path,
+        files: [{ name: 'a.ts', rel: 'a.ts', path: `${path}/a.ts`, kind: 'file' }],
+        truncated: false,
+      }
+    }) })
+    const response = await api.host.listFiles(request({ path: '/w' }), new AbortController().signal)
+    expect(response.result).toEqual({
+      ok: true,
+      value: { root: '/w', files: [{ name: 'a.ts', rel: 'a.ts', path: '/w/a.ts', kind: 'file' }], truncated: false },
+    })
+  })
+
+  it('maps typed file-browser failures onto the wire error codes and folds unknown throws to internal', async () => {
+    const { api } = await harness(undefined, undefined, { fileBrowser: stub(async (path) => {
+      if (path === '/denied') throw new FileBrowserError('directory-unreadable', '/denied', 'cannot list /denied')
+      throw new Error('disk detached')
+    }) })
+    expect((await api.host.listFiles(request({ path: '/denied' }), new AbortController().signal)).result).toMatchObject({
+      ok: false, error: { code: 'directory-unreadable', details: { path: '/denied' } },
+    })
+    expect((await api.host.listFiles(request({ path: '/w' }), new AbortController().signal)).result).toMatchObject({
+      ok: false, error: { code: 'internal' },
+    })
+  })
+
+  it('reports an aborted listing as cancelled, like the other signal-following RPCs', async () => {
+    const { api } = await harness(undefined, undefined, { fileBrowser: stub((_path, signal) => new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => { reject(new Error('scan aborted')) }, { once: true })
+    })) })
+    const abort = new AbortController()
+    const pending = api.host.listFiles(request({ path: '/w' }), abort.signal)
+    abort.abort()
+    expect((await pending).result).toMatchObject({ ok: false, error: { code: 'cancelled' } })
+  })
+})
+
+describe('host.listLevel', () => {
+  const stub = (listLevel: (path: string, signal: AbortSignal) => Promise<LevelListing>) =>
+    ({ listFiles: async () => { throw new Error('unused') }, listLevel })
+
+  it('serves one level through the file-browser seam, forwarding the request signal', async () => {
+    const { api } = await harness(undefined, undefined, { fileBrowser: stub(async (path, signal) => {
+      expect(signal.aborted).toBe(false)
+      return {
+        path,
+        entries: [{ name: 'src', path: `${path}/src`, kind: 'directory', hidden: false }],
+        truncated: false,
+      }
+    }) })
+    const response = await api.host.listLevel(request({ path: '/w' }), new AbortController().signal)
+    expect(response.result).toEqual({
+      ok: true,
+      value: { path: '/w', entries: [{ name: 'src', path: '/w/src', kind: 'directory', hidden: false }], truncated: false },
+    })
+  })
+
+  it('maps typed file-browser failures onto the wire error codes and folds unknown throws to internal', async () => {
+    const { api } = await harness(undefined, undefined, { fileBrowser: stub(async (path) => {
+      if (path === '/denied') throw new FileBrowserError('directory-unreadable', '/denied', 'cannot list /denied')
+      throw new Error('disk detached')
+    }) })
+    expect((await api.host.listLevel(request({ path: '/denied' }), new AbortController().signal)).result).toMatchObject({
+      ok: false, error: { code: 'directory-unreadable', details: { path: '/denied' } },
+    })
+    expect((await api.host.listLevel(request({ path: '/w' }), new AbortController().signal)).result).toMatchObject({
+      ok: false, error: { code: 'internal' },
+    })
+  })
+
+  it('reports an aborted level listing as cancelled', async () => {
+    const { api } = await harness(undefined, undefined, { fileBrowser: stub((_path, signal) => new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => { reject(new Error('scan aborted')) }, { once: true })
+    })) })
+    const abort = new AbortController()
+    const pending = api.host.listLevel(request({ path: '/w' }), abort.signal)
+    abort.abort()
+    expect((await pending).result).toMatchObject({ ok: false, error: { code: 'cancelled' } })
   })
 })
 

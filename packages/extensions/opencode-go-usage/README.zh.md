@@ -23,6 +23,25 @@ OpenCode Go 订阅额度文档的宿主能力:一个服务通过 `opencodeUsage`
     timeoutMs: 20000
 ```
 
+## 安装
+
+本仓库已在 `dsh-web-app` bundle 中随附两行。仓库之外的部署在自己的组合中声明依赖并挂载本行:
+
+```json
+// profile or bundle package.json
+"dependencies": {
+  "@deepseek-ai/dsh-opencode-go-usage": "^0.1.0"
+}
+```
+
+```yaml
+# composition patch layer
+- id: opencode-go-usage
+  name: '@deepseek-ai/dsh-opencode-go-usage'
+```
+
+前置条件:宿主组合需挂载 credential seam(`dsh-credentials-local`)以解析密钥,以及工具注册表(`dsh-tools`)。浏览器界面来自 `@deepseek-ai/dsh-client-ui-opencode-go-usage`,其 `opencodeUsage` Remote 命名空间随 `dsh-api-remotes` 的 Client 装配走——请使用同一 release 中携带对应 `opencodeUsage` 挂载的 `dsh` 版本。
+
 ## 模型体验
 
 注册一个模型工具 `opencode_go_usage`(无参数)。工具读取当前额度文档并以纯文本呈现三个窗口:

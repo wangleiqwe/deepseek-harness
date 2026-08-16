@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { SessionId, WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-remotes/client'
 import { SessionRuntime } from '../src/client/sessions/service.ts'
 import { WorkspaceManager } from '../src/client/workspaces/manager.ts'
-import { DirectoryBrowseError, WorkspaceCreateError, WorkspaceRuntime } from '../src/client/workspaces/service.ts'
+import { DirectoryBrowseError, FileBrowseError, WorkspaceCreateError, WorkspaceRuntime } from '../src/client/workspaces/service.ts'
 import { FakeApiClient, deferred, err, fakeRemote, ok } from './fake-api.client.ts'
 
 const sid = (id: string): SessionId => id as SessionId
@@ -347,6 +347,34 @@ describe('WorkspaceRuntime', () => {
     expect(api.callsOf('host.createDirectory')).toEqual([{ path: '/home/u', name: 'fresh' }])
     api.onCreateDirectory = () => Promise.resolve(err({ code: 'directory-exists', message: 'taken', details: { path: '/home/u/fresh' } }))
     await expect(workspaces.createDirectory('/home/u', 'fresh')).rejects.toMatchObject({ rpcError: { code: 'directory-exists' } })
+  })
+
+  it('passes bounded file listings through the file-browser wire, wrapping business failures', async () => {
+    const ctx = new Context()
+    const api = new FakeApiClient()
+    const workspaces = new WorkspaceRuntime(ctx, api, new SessionRuntime(ctx, api, fakeRemote()))
+    const listing = { root: '/w', files: [{ name: 'a.ts', rel: 'a.ts', path: '/w/a.ts', kind: 'file' as const }], truncated: false }
+    api.onListFiles = () => Promise.resolve(ok(listing))
+    await expect(workspaces.listFiles('/w')).resolves.toEqual(listing)
+    expect(api.callsOf('host.listFiles')).toEqual([{ path: '/w' }])
+    api.onListFiles = () => Promise.resolve(err({ code: 'directory-unreadable', message: 'denied', details: { path: '/w' } }))
+    const listFailure = workspaces.listFiles('/w')
+    await expect(listFailure).rejects.toBeInstanceOf(FileBrowseError)
+    await expect(listFailure).rejects.toMatchObject({ rpcError: { code: 'directory-unreadable' } })
+  })
+
+  it('passes one-level listings through the file-browser wire, wrapping business failures', async () => {
+    const ctx = new Context()
+    const api = new FakeApiClient()
+    const workspaces = new WorkspaceRuntime(ctx, api, new SessionRuntime(ctx, api, fakeRemote()))
+    const level = { path: '/w', entries: [{ name: 'src', path: '/w/src', kind: 'directory' as const, hidden: false }], truncated: false }
+    api.onListLevel = () => Promise.resolve(ok(level))
+    await expect(workspaces.listLevel('/w')).resolves.toEqual(level)
+    expect(api.callsOf('host.listLevel')).toEqual([{ path: '/w' }])
+    api.onListLevel = () => Promise.resolve(err({ code: 'directory-unreadable', message: 'denied', details: { path: '/w' } }))
+    const levelFailure = workspaces.listLevel('/w')
+    await expect(levelFailure).rejects.toBeInstanceOf(FileBrowseError)
+    await expect(levelFailure).rejects.toMatchObject({ rpcError: { code: 'directory-unreadable' } })
   })
 
   it('opens a filesystem path through the host without local state', async () => {

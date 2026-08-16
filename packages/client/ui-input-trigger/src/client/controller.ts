@@ -88,9 +88,9 @@ export class InputTriggerController {
    */
   track(draft: string, caret: number, guard: TriggerGuard, draftRev: number): void {
     if (this.disposed) return
+    const raw = detectTrigger(draft, caret, guard)
     const launched = this.launcher.getSnapshot() !== null
     this.clearLauncher()
-    const raw = detectTrigger(draft, caret, guard)
     if (raw === null) {
       this.hit = null
       this.stopFetch()

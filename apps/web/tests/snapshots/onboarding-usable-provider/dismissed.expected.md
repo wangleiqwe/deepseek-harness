@@ -7,9 +7,15 @@
     - button "模型":
       - img
       - text: 模型
+    - button "Go 套餐额度":
+      - img
+      - text: Go 套餐额度
     - button "插件":
       - img
       - text: 插件
+    - button "图片识别":
+      - img
+      - text: 图片识别
     - button "Agent 预设":
       - img
       - text: Agent 预设
@@ -30,6 +36,7 @@
     - option "ant-ling"
     - option "anthropic"
     - option "azure-openai-responses"
+    - option "baseten"
     - option "cerebras"
     - option "cloudflare-ai-gateway"
     - option "cloudflare-workers-ai"
@@ -53,6 +60,7 @@
     - option "openrouter"
     - option "qwen-token-plan"
     - option "qwen-token-plan-cn"
+    - option "qwen-token-plan-individual"
     - option "together"
     - option "vercel-ai-gateway"
     - option "xai"

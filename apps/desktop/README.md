@@ -75,10 +75,10 @@ when a monitor disappears).
 ## Icons
 
 The whale mark comes from [`apps/web/public/favicon.svg`](../web/public/favicon.svg):
-black on transparent for the window, taskbar, and the packaged application
-icon (electron-builder converts `assets/icon-512.png` into a multi-size
-`.ico`), and inverted to white for the tray. The PNGs under `assets/` are
-committed; regenerate them after a favicon change with
+black on transparent everywhere — window, taskbar, tray, and the packaged
+application icon (electron-builder converts `assets/icon-512.png` into a
+multi-size `.ico`). The PNGs under `assets/` are committed; regenerate them
+after a favicon change with
 `pnpm --filter @deepseek-ai/dsh-desktop run icons`.
 
 ## Testing

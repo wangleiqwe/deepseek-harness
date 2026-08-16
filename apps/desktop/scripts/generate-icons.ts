@@ -5,8 +5,8 @@
  * - `assets/icon-<size>.png` — black whale on transparent, for the window,
  *   taskbar, and the packaged application icon (electron-builder converts
  *   `icon-512.png` to a multi-size .ico).
- * - `assets/tray-16.png` / `tray-32.png` — the mark inverted to white, since
- *   Windows taskbars are dark.
+ * - `assets/tray-16.png` / `tray-32.png` — the same black mark in the tray
+ *   sizes; the tray renders the dark whale like every other surface.
  *
  * The PNGs are committed, so builds and tests never need sharp at runtime;
  * rerun this script (`pnpm --filter @deepseek-ai/dsh-desktop run icons`) only
@@ -40,10 +40,7 @@ async function generate(): Promise<void> {
       .toFile(join(ASSETS, `icon-${size}.png`))
   }
   for (const size of [16, 32] as const) {
-    // negate with alpha: false maps the black #000 mark to white and leaves
-    // the transparent canvas transparent.
     await sharp(svg, { density: (size * 72) / FAVICON_SIZE })
-      .negate({ alpha: false })
       .png()
       .toFile(join(ASSETS, `tray-${size}.png`))
   }

@@ -23,6 +23,25 @@ The gateway answers `GET /zen/go/v1/usage` with Bearer authentication. The key r
     timeoutMs: 20000
 ```
 
+## Installation
+
+This repository ships both rows in the `dsh-web-app` bundle. A deployment outside this repository declares the dependency and mounts the row in its own composition:
+
+```json
+// profile or bundle package.json
+"dependencies": {
+  "@deepseek-ai/dsh-opencode-go-usage": "^0.1.0"
+}
+```
+
+```yaml
+# composition patch layer
+- id: opencode-go-usage
+  name: '@deepseek-ai/dsh-opencode-go-usage'
+```
+
+Prerequisites: the host composition must mount the credential seam (`dsh-credentials-local`) so the key resolves, and the tool registry (`dsh-tools`). The browser surfaces come from `@deepseek-ai/dsh-client-ui-opencode-go-usage`, whose `opencodeUsage` Remote namespace rides the `dsh-api-remotes` Client assembly — use a `dsh` release that ships the same `opencodeUsage` mount.
+
 ## Model Experience
 
 Registers one model tool, `opencode_go_usage` (no parameters). The tool reads the current usage document and renders the three windows as plain text:

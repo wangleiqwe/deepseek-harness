@@ -655,6 +655,37 @@ describe('toStreamChunks', () => {
     })
   })
 
+  it('reads an error event with an aborted caller as an aborted finish', async () => {
+    // pi-ai 0.84 delivers a pre-aborted signal as an error event whose stop
+    // reason it could not classify; the caller's signal restores the outcome.
+    const controller = new AbortController()
+    controller.abort('caller stopped')
+    const error = assistant({ stopReason: 'error', errorMessage: 'caller stopped' })
+    const chunks = await collect(toStreamChunks(
+      feed({ type: 'error', reason: 'error', error }),
+      undefined,
+      controller.signal,
+    ))
+    expect(chunks.at(-1)).toEqual({
+      type: 'finish',
+      reason: { kind: 'aborted', failure: { message: 'caller stopped', code: 'ABORTED' } },
+    })
+  })
+
+  it('keeps a provider error an error when the caller signal is not aborted', async () => {
+    const controller = new AbortController()
+    const error = assistant({ stopReason: 'error', errorMessage: 'boom' })
+    const chunks = await collect(toStreamChunks(
+      feed({ type: 'error', reason: 'error', error }),
+      undefined,
+      controller.signal,
+    ))
+    expect(chunks.at(-1)).toEqual({
+      type: 'finish',
+      reason: { kind: 'error', failure: { message: 'boom', code: 'PI_AI_ERROR' } },
+    })
+  })
+
   it('rejects a stream that ends without done or error', async () => {
     await expect(collect(toStreamChunks(feed({ type: 'start', partial: assistant() }))))
       .rejects.toThrow(/without done\/error/)
@@ -676,6 +707,20 @@ describe('mapStopReason / mapUsage', () => {
     ['length', { kind: 'max-tokens' }],
     ['toolUse', { kind: 'tool-calls' }],
     ['aborted', { kind: 'aborted', failure: { message: 'pi-ai stream aborted', code: 'ABORTED' } }],
+    ['pending', {
+      kind: 'error',
+      failure: {
+        message: 'model "deepseek-v4-flash" finished without a terminal stop reason',
+        code: 'PI_AI_ERROR',
+      },
+    }],
+    ['deferred', {
+      kind: 'error',
+      failure: {
+        message: 'model "deepseek-v4-flash" returned a deferred response; the pi-ai adapter does not fetch deferred results',
+        code: 'PI_AI_ERROR',
+      },
+    }],
   ] as const)('maps %s', (stopReason, expected) => {
     expect(mapStopReason(assistant({ stopReason, content: [{ type: 'text', text: 'ok' }] }))).toEqual(expected)
   })
