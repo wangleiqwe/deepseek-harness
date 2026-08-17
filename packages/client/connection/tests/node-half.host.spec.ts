@@ -170,6 +170,8 @@ describe('connection node half', () => {
     // passed), but each privileged method stays loopback-only and 403s.
     for (const method of [
       'host.pickDirectory', 'host.openPath',
+      // Opening a session's artifact directory drives the host desktop.
+      'session.openDirectory',
       'settings.describe', 'settings.openDocument', 'settings.update', 'settings.replace', 'settings.mutate',
       'credentials.describe', 'credentials.set', 'credentials.unset',
       'llm.discoverModels',
@@ -467,6 +469,7 @@ describe('connection node half over a real HTTP server', () => {
         'settings.describe', 'settings.openDocument', 'settings.update', 'settings.replace', 'settings.mutate',
         'credentials.describe', 'credentials.set', 'credentials.unset',
         'host.pickDirectory', 'host.openPath',
+        'session.openDirectory',
         // Carries a draft credential and turns the host into a fetcher for a
         // URL the caller picked: an anonymous LAN caller must not reach it.
         'llm.discoverModels',

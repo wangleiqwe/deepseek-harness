@@ -9,7 +9,8 @@ import {
   contentBlockSchema, sessionCancelRequestSchema, sessionCancelValueSchema, sessionCreateRequestSchema,
   sessionCreateValueSchema, sessionEventSchema, sessionHistoryRequestSchema, sessionHistoryValueSchema,
   sessionIdSchema, sessionListRequestSchema, sessionListValueSchema, sessionModelsRequestSchema,
-  sessionModelsValueSchema, sessionPromptRequestSchema, sessionPromptValueSchema,
+  sessionModelsValueSchema, sessionOpenDirectoryRequestSchema, sessionOpenDirectoryValueSchema,
+  sessionPromptRequestSchema, sessionPromptValueSchema,
   sessionSearchRequestSchema, sessionSearchValueSchema, sessionSelectModelRequestSchema,
   sessionSelectModelValueSchema, sessionSummarySchema,
   sessionUpdateQueueRequestSchema, sessionUpdateQueueValueSchema,
@@ -287,6 +288,16 @@ describe('sessions domain schemas', () => {
     expect(sessionCancelValueSchema.parse({ accepted: true }).accepted).toBe(true)
     expect(sessionUpdateQueueValueSchema.parse({ accepted: true }).accepted).toBe(true)
     expect(contentBlockSchema.parse({ type: 'text', text: 'x', extra: 1 })).toMatchObject({ extra: 1 })
+  })
+
+  it('openDirectory requires the id and carries the opened/path pair', () => {
+    expect(sessionOpenDirectoryRequestSchema.parse({ sessionId: 's1' }).sessionId).toBe('s1')
+    expect(() => sessionOpenDirectoryRequestSchema.parse({})).toThrow()
+    expect(sessionOpenDirectoryValueSchema.parse({ opened: true })).toEqual({ opened: true })
+    expect(sessionOpenDirectoryValueSchema.parse({ opened: false, path: '/x/s1' })).toEqual({ opened: false, path: '/x/s1' })
+    expect(sessionOpenDirectoryValueSchema.parse({ opened: false, path: null })).toEqual({ opened: false, path: null })
+    expect(() => sessionOpenDirectoryValueSchema.parse({ opened: false })).toThrow()
+    expect(() => sessionOpenDirectoryValueSchema.parse({})).toThrow()
   })
 })
 

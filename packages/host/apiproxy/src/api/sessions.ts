@@ -340,6 +340,19 @@ export interface SessionsApi {
   Promise<RpcResponse<{ sessionId: SessionId }>>
 
   /**
+   * Opens the session's on-disk artifact directory in the native desktop
+   * (Finder / Explorer / xdg-open hand-off). The host resolves the directory
+   * from the session header and the mounted persistence backend; no browser
+   * payload carries a path in either direction unless the deployment has no
+   * opener to hand it to. An unopened response carries the resolved directory,
+   * or null when the backend owns no per-session artifact (e.g. SQLite).
+   * Reading the source uses attached state or persistence inspection without
+   * acquiring an Agent.
+   */
+  openDirectory(request: RpcRequest<{ sessionId: SessionId }>, signal: AbortSignal):
+  Promise<RpcResponse<{ opened: true } | { opened: false; path: string | null }>>
+
+  /**
    * Sends text and temporary image bytes to an ordinary session Agent after durable host admission.
    * Browser callers attach their current IANA zone;
    * the Host validates, canonicalizes, and records it on that exact user message. Omission remains

@@ -563,6 +563,27 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'fileBrowser',
+    summary: 'Abstract file-listing service.',
+    description: 'Abstract file-listing service. Subclass, implement `listFiles` and `listLevel`, and load the subclass as a plugin — it registers as `ctx.fileBrowser` (one implementation per context; loading a second throws, cordis\' standard duplicate-service behavior).',
+    methods: [
+      {
+        signature: 'abstract listFiles(root: string, signal?: AbortSignal): Promise<FileListing>',
+        description: 'List the files and directories under one root, bounded. The root must be fully qualified (a wire value must never resolve against the host cwd or, on Windows, its current drive); a missing or unreadable root rejects.',
+        parameters: [{ name: 'root', description: 'absolute directory to list.' }, { name: 'signal', description: 'caller lifetime; abort stops the scan and rejects with the abort reason.' }],
+        returns: 'the bounded listing with root-relative rows.',
+        throws: ['{FileBrowserError} `directory-unreadable` for a non-qualified or unreadable root.'],
+      },
+      {
+        signature: 'abstract listLevel(path: string, signal?: AbortSignal): Promise<LevelListing>',
+        description: 'List one directory level (files and directories). Same qualification and skip rules as FileBrowser.listFiles; the caller drives tree navigation one level at a time.',
+        parameters: [{ name: 'path', description: 'absolute directory to list.' }, { name: 'signal', description: 'caller lifetime; abort stops the scan and rejects with the abort reason.' }],
+        returns: 'the level\'s entries, name-sorted.',
+        throws: ['{FileBrowserError} `directory-unreadable` for a non-qualified or unreadable root.'],
+      },
+    ],
+  },
+  {
     key: 'fs',
     summary: 'Abstract filesystem provider.',
     description: 'Abstract filesystem provider. Targets must preserve identity across aliases; reads expose regular UTF-8 text or typed errors, listings are stable and content-free, and mutations are atomic. Optional guards add stale protection without changing the unguarded provider contract.',
@@ -903,6 +924,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Delete one feedback item. Absence is successful regardless of the supplied version; an existing item requires an exact version match.',
         parameters: [{ name: 'request', description: 'Session, message, and observed item version.' }],
         returns: 'the stable absent postcondition, or an explicit failure.',
+      },
+    ],
+  },
+  {
+    key: 'opencodeUsage',
+    summary: 'Host service owning the usage route and the model tool.',
+    description: 'Host service owning the usage route and the model tool.',
+    methods: [
+      {
+        signature: '@Remote(\'usage\') async usage(): Promise<UsageResult>',
+        description: 'Read the current Go usage snapshot from the gateway.',
+        parameters: [],
+        returns: 'the three windows with their reset instants, or one failure reason.',
       },
     ],
   },
@@ -4520,6 +4554,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'TypertTypeModel',
     declaration: 'export interface TypertTypeModel {\n    readonly name: string;\n    readonly declaration: string;\n}',
+  },
+  {
+    name: 'UsageFailure',
+    declaration: 'export type UsageFailure = {\n    ok: false;\n    error: string;\n};',
+  },
+  {
+    name: 'UsageResult',
+    declaration: 'export type UsageResult = UsageSuccess | UsageFailure;',
+  },
+  {
+    name: 'UsageSuccess',
+    declaration: 'export type UsageSuccess = {\n    ok: true;\n    fetchedAt: string;\n    rolling: UsageWindow | null;\n    weekly: UsageWindow | null;\n    monthly: UsageWindow | null;\n};',
+  },
+  {
+    name: 'UsageWindow',
+    declaration: 'export type UsageWindow = {\n    status: string;\n    percent: number | null;\n    resetsAt: string | null;\n};',
   },
   {
     name: 'UserMessage',

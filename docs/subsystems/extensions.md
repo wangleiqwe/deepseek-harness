@@ -256,6 +256,22 @@ Types: [Agent](core.md)
 
 Source: [`packages/extensions/cordis-host-runner/src/index.ts:124`](../../packages/extensions/cordis-host-runner/src/index.ts)
 
+<a id="ctxopencodeusage--opencodeusageservice"></a>
+
+### `ctx.opencodeUsage` — `OpencodeUsageService`
+
+Host service owning the usage route and the model tool.
+
+```ts cordis-catalog
+/**
+ * Read the current Go usage snapshot from the gateway.
+ * @returns the three windows with their reset instants, or one failure reason.
+ */
+@Remote('usage') async usage(): Promise<UsageResult>
+```
+
+Source: [`packages/extensions/opencode-go-usage/src/index.ts:136`](../../packages/extensions/opencode-go-usage/src/index.ts)
+
 <a id="cordis-events"></a>
 
 ### `cordis/*` events

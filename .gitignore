@@ -45,6 +45,7 @@ packages/host/webserver/src/*.map
 /test-gui.log
 /test-gui2.log
 .artifacts/
+.ab-test/
 .playwright-mcp/
 .orig
 .worktrees/

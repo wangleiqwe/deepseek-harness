@@ -138,6 +138,21 @@ export const sessionForkValueSchema = z.object({
   sessionId: sessionIdSchema,
 }) satisfies z.ZodType<Wire<ResponseValue<'session.fork'>>>
 
+/** session.openDirectory request payload. */
+export const sessionOpenDirectoryRequestSchema = z.object({
+  sessionId: sessionIdSchema,
+}) satisfies z.ZodType<Wire<RequestPayload<'session.openDirectory'>>>
+
+/**
+ * session.openDirectory response value: opened carries no path (the opener
+ * took it); unopened carries the resolved directory, or null when the backend
+ * owns no per-session artifact.
+ */
+export const sessionOpenDirectoryValueSchema = z.discriminatedUnion('opened', [
+  z.object({ opened: z.literal(true) }),
+  z.object({ opened: z.literal(false), path: z.string().nullable() }),
+]) satisfies z.ZodType<Wire<ResponseValue<'session.openDirectory'>>>
+
 /** session.history request payload (beforeSeq/maxMessages page backwards from the window tail). */
 export const sessionHistoryRequestSchema = z.object({
   sessionId: sessionIdSchema,

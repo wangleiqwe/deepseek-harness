@@ -388,6 +388,17 @@ describe('WorkspaceRuntime', () => {
     await expect(workspaces.openPath('/missing')).rejects.toThrow(/path open failed/)
   })
 
+  it('opens a session artifact directory through the host session RPC', async () => {
+    const ctx = new Context()
+    const api = new FakeApiClient()
+    const sessions = new SessionRuntime(ctx, api, fakeRemote())
+    const workspaces = new WorkspaceRuntime(ctx, api, sessions)
+    await expect(workspaces.openSessionDirectory(sid('s-1'))).resolves.toBeUndefined()
+    expect(api.callsOf('session.openDirectory')).toEqual([{ sessionId: 's-1' }])
+    api.onOpenDirectory = () => Promise.resolve(err({ code: 'session-not-found', message: 'gone', details: { sessionId: sid('s-1') } }))
+    await expect(workspaces.openSessionDirectory(sid('s-1'))).rejects.toThrow(/session directory open failed/)
+  })
+
   it('deletes a Workspace or preserves it when the Host rejects deletion', async () => {
     const ctx = new Context()
     const api = new FakeApiClient()

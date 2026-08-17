@@ -54,6 +54,7 @@ function scriptedApi(overrides: {
       }),
       rename: r => ok(r, { title: 'renamed', seq: 0 }),
       fork: r => ok(r, { sessionId: sid('s-fork') }),
+      openDirectory: r => ok(r, { opened: true as const }),
       prompt: r => ok(r, { accepted: true as const }),
       attachment: r => ok(r, {
         attachment: { attachmentId: 'a' as never, mediaType: 'image/png', bytes: 1, width: 1, height: 1 },
@@ -219,6 +220,21 @@ describe('unary round trip', () => {
     const response = await client(api).sessions.fork({ sessionId: sid('s-parent'), atSeq: 7 })
     expect(seen?.payload).toEqual({ sessionId: 's-parent', atSeq: 7 })
     expect(response.result).toEqual({ ok: true, value: { sessionId: 's-child' } })
+  })
+
+  it('routes session.openDirectory through the wire with its value schema', async () => {
+    let seen: RpcRequest<{ sessionId: SessionId }> | undefined
+    const api = scriptedApi({
+      sessions: {
+        openDirectory: (request) => {
+          seen = request
+          return ok(request, { opened: false, path: '/t/session-dir' })
+        },
+      },
+    })
+    const response = await client(api).sessions.openDirectory({ sessionId: sid('s-target') })
+    expect(seen?.payload).toEqual({ sessionId: 's-target' })
+    expect(response.result).toEqual({ ok: true, value: { opened: false, path: '/t/session-dir' } })
   })
 
   it('routes workspace rename, delete, and ordering through the wire', async () => {

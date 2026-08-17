@@ -284,6 +284,19 @@ export class WorkspaceRuntime implements IWorkspaces {
   }
 
   /**
+   * Open a session's on-disk artifact directory with the Host operating
+   * system's default application. The Host resolves the directory itself; on
+   * a deployment without a native opener the call resolves as a no-op.
+   * @param sessionId - the session whose log directory to open.
+   */
+  async openSessionDirectory(sessionId: SessionId): Promise<void> {
+    const response = await this.api.sessions.openDirectory({ sessionId })
+    if (!response.result.ok) {
+      throw new Error(`session directory open failed: ${response.result.error.message}`)
+    }
+  }
+
+  /**
    * Rename a Workspace.
    * @param workspaceId - target workspace.
    * @param title - new display title (trimmed non-empty by the Host).

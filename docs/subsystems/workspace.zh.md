@@ -149,6 +149,38 @@ abstract capability(): DirectoryPickerCapability
 
 Source: [`packages/host/directory-picker/src/index.ts:131`](../../packages/host/directory-picker/src/index.ts)
 
+<a id="ctxfilebrowser--filebrowser-abstract-seam"></a>
+
+### `ctx.fileBrowser` — `FileBrowser` (abstract seam)
+
+Abstract file-listing service. Subclass, implement `listFiles` and `listLevel`, and load the subclass as a plugin — it registers as `ctx.fileBrowser` (one implementation per context; loading a second throws, cordis' standard duplicate-service behavior).
+
+```ts cordis-catalog
+/**
+ * List the files and directories under one root, bounded. The root must be
+ * fully qualified (a wire value must never resolve against the host cwd or,
+ * on Windows, its current drive); a missing or unreadable root rejects.
+ * @param root - absolute directory to list.
+ * @param signal - caller lifetime; abort stops the scan and rejects with the abort reason.
+ * @returns the bounded listing with root-relative rows.
+ * @throws {FileBrowserError} `directory-unreadable` for a non-qualified or unreadable root.
+ */
+abstract listFiles(root: string, signal?: AbortSignal): Promise<FileListing>
+
+/**
+ * List one directory level (files and directories). Same qualification and
+ * skip rules as {@link FileBrowser.listFiles}; the caller drives tree
+ * navigation one level at a time.
+ * @param path - absolute directory to list.
+ * @param signal - caller lifetime; abort stops the scan and rejects with the abort reason.
+ * @returns the level's entries, name-sorted.
+ * @throws {FileBrowserError} `directory-unreadable` for a non-qualified or unreadable root.
+ */
+abstract listLevel(path: string, signal?: AbortSignal): Promise<LevelListing>
+```
+
+Source: [`packages/host/file-browser/src/index.ts:90`](../../packages/host/file-browser/src/index.ts)
+
 <a id="ctxworkspaceregistry--workspaceregistry"></a>
 
 ### `ctx.workspaceRegistry` — `WorkspaceRegistry`

@@ -93,6 +93,12 @@ function fakeApi(overrides: Partial<{ muxFrames: MuxFrame[]; hostFrames: HostFra
       async fork(request) {
         return { rpcId: request.rpcId, result: { ok: true, value: { sessionId: 's-fork' as never } } }
       },
+      async openDirectory(request) {
+        return {
+          rpcId: request.rpcId,
+          result: { ok: true, value: { opened: true as const } },
+        }
+      },
       async prompt(request) {
         return { rpcId: request.rpcId, result: { ok: true, value: { accepted: true as const } } }
       },
@@ -362,6 +368,8 @@ describe('unary round trip (handler ⇄ client, no network)', () => {
     })
     const renamed = await c.sessions.rename({ sessionId: 's' as never, title: 'named' })
     expect(renamed.result).toMatchObject({ ok: true, value: { title: 'named', seq: 0 } })
+    const opened = await c.sessions.openDirectory({ sessionId: 's' as never })
+    expect(opened.result).toMatchObject({ ok: true, value: { opened: true } })
     expect((await c.sessions.prompt({ sessionId: 's' as never, mode: 'queue', content: [{ type: 'text', text: 'x' }] })).result.ok).toBe(true)
     expect((await c.sessions.attachment({ sessionId: 's' as never, attachmentId: 'a' as never })).result.ok).toBe(true)
     expect((await c.sessions.updateQueue({

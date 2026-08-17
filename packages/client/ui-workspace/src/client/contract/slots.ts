@@ -128,6 +128,12 @@ export type WorkspaceBrowserInjected = DirectoryPickingInjected & {
    */
   archiveSession: (sessionId: SessionId) => Promise<void>
   /**
+   * Open a Session's on-disk artifact directory with the Host operating
+   * system's default application (row menu action; no dialog). The Host
+   * resolves the directory; a deployment without a native opener no-ops.
+   */
+  openSessionDirectory: (sessionId: SessionId) => Promise<void>
+  /**
    * Reorder a session inside its Workspace account (DOM-insertBefore
    * semantics: omitted anchor appends to the end). The view refreshes from
    * the Host response/changed frame; failures leave the order unchanged.

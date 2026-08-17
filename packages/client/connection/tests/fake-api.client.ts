@@ -70,6 +70,8 @@ export class FakeApiClient implements IApiClient {
     () => Promise.resolve(ok({ attachment: { attachmentId: 'a' as never, mediaType: 'image/png', bytes: 1, width: 1, height: 1 }, data: 'AA==' }))
   onUpdateQueue: (payload: unknown) => Promise<RpcResponse<{ accepted: true }>> = () => Promise.resolve(ok({ accepted: true as const }))
   onCancel: (payload: unknown) => Promise<RpcResponse<{ accepted: true }>> = () => Promise.resolve(ok({ accepted: true as const }))
+  onOpenDirectory: (payload: unknown) => Promise<RpcResponse<{ opened: true } | { opened: false; path: string | null }>> =
+    () => Promise.resolve(ok({ opened: true }))
   onDescribe: (payload: unknown) => Promise<RpcResponse<{
     version: string
     cwd: string
@@ -131,6 +133,8 @@ export class FakeApiClient implements IApiClient {
       this.record('session.selectModel', payload, this.onSelectModel(payload)),
     rename: (payload: unknown) => this.record('session.rename', payload, this.onRename(payload)),
     fork: (payload: unknown) => this.record('session.fork', payload, this.onFork(payload)),
+    openDirectory: (payload: unknown) =>
+      this.record('session.openDirectory', payload, this.onOpenDirectory(payload)),
     prompt: (payload: unknown) => this.record('session.prompt', payload, this.onPrompt(payload)),
     attachment: (payload: unknown) => this.record('session.attachment', payload, this.onAttachment(payload)),
     updateQueue: (payload: unknown) => this.record('session.updateQueue', payload, this.onUpdateQueue(payload)),

@@ -2357,6 +2357,13 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         const appended = logOf(sessionId).at(-1) as SessionEvent
         return ok(request, { title: normalized, seq: appended.seq })
       },
+      // Deterministic native-open no-op: the fixture's host has no desktop.
+      openDirectory: (request) => {
+        const missing = requireSession(request)
+        if (missing !== undefined) return missing
+        const { sessionId } = request.payload
+        return ok(request, { opened: false, path: `/fixture/sessions/${sessionId}` })
+      },
       fork: (request) => {
         const { sessionId, atSeq } = request.payload
         const source = summaryOf(sessionId)
@@ -3156,6 +3163,7 @@ export class FixtureApiClient extends AbstractApiClient {
       case 'session.selectModel': return this.api.sessions.selectModel(request)
       case 'session.rename': return this.api.sessions.rename(request)
       case 'session.fork': return this.api.sessions.fork(request)
+      case 'session.openDirectory': return this.api.sessions.openDirectory(request, new AbortController().signal)
       case 'session.prompt': return this.api.sessions.prompt(request)
       case 'session.attachment': return this.api.sessions.attachment(request)
       case 'session.updateQueue': return this.api.sessions.updateQueue(request)

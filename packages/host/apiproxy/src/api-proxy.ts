@@ -2482,6 +2482,31 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         return ok(request, { sessionId: childId })
       },
 
+      async openDirectory(request, signal) {
+        const { sessionId } = request.payload
+        let source: SessionReadState
+        try {
+          source = await readSessionState(sessionId)
+        } catch (error: unknown) {
+          if (error instanceof SessionNotFound) {
+            return err(request, { code: 'session-not-found', message: error.message, details: { sessionId } })
+          }
+          return err(request, {
+            code: 'internal',
+            message: `session directory unavailable for session "${sessionId}": ${String(error)}`,
+            details: {},
+          })
+        }
+        // The mounted backend resolves the per-session artifact; a backend
+        // without one (e.g. SQLite) has no directory to open.
+        const persistence = ctx.get('sessionPersistence')
+        const location = persistence?.locate(source.header)
+        if (location === undefined) return ok(request, { opened: false, path: null })
+        const directory = dirname(location.path)
+        if (!canOpenPaths()) return ok(request, { opened: false, path: directory })
+        return await openPath(request, directory, signal)
+      },
+
       async prompt(request) {
         const { sessionId, mode, content, clientTimeZone } = request.payload
         const canonicalTimeZone = clientTimeZone === undefined

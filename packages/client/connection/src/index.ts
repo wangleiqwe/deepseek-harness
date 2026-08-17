@@ -107,6 +107,9 @@ const PRIVILEGED_METHODS = new Set([
   'agentPreset.remove',
   'host.pickDirectory',
   'host.openPath',
+  // Opening a session's artifact directory drives the host desktop, the same
+  // loopback-pinned class as host.openPath / agentPreset.openDocument.
+  'session.openDirectory',
   'settings.describe',
   'settings.openDocument',
   'settings.update',

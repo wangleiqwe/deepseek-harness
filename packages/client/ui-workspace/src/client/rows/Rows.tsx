@@ -345,12 +345,13 @@ export function SearchResultItem({ result, currentId, onOpen, t }: {
  * @param props.onRename - open the session rename dialog (id + current title).
  * @param props.onFork - fork a session at its last completed turn.
  * @param props.onArchive - archive a session by id.
+ * @param props.onOpenDirectory - open the session's on-disk artifact directory.
  * @param props.drag - optional draggable-row wiring.
  * @param props.flat - omit the empty status slot in the hierarchy-free flat list.
  * @param props.t - the browser root's locale seat.
  * @returns the session row.
  */
-export function SessionNodeItem({ node, currentId, now, onOpen, onRename, onFork, onArchive, drag, flat = false, t }: {
+export function SessionNodeItem({ node, currentId, now, onOpen, onRename, onFork, onArchive, onOpenDirectory, drag, flat = false, t }: {
   node: SessionNode
   currentId: string | undefined
   now: number
@@ -361,6 +362,8 @@ export function SessionNodeItem({ node, currentId, now, onOpen, onRename, onFork
   onFork: (id: SessionNode['id']) => void
   /** Archive this session (row menu action; commits without a dialog). */
   onArchive: (id: SessionNode['id']) => void
+  /** Open this session's on-disk artifact directory (row menu action; no dialog). */
+  onOpenDirectory: (id: SessionNode['id']) => void
   /** Present only on draggable rows (workspace-group sessions outside search). */
   drag?: RowDragProps | undefined
   /** The row is rendered without a parent Workspace header. */
@@ -380,6 +383,7 @@ export function SessionNodeItem({ node, currentId, now, onOpen, onRename, onFork
   const sessionMenuItems = [
     { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
     { id: 'fork', label: t('menu.fork'), icon: <IconBranchOutline16 /> },
+    { id: 'openDirectory', label: t('menu.openSessionDirectory'), icon: <IconFolderOpen16 /> },
     // 20-native glyph in the menu's 16px icon slot (Menu.module.css .itemIcon).
     { id: 'archive', label: t('menu.archiveSession'), icon: <IconArchiveOutline20 size={16} /> },
   ]
@@ -443,6 +447,7 @@ export function SessionNodeItem({ node, currentId, now, onOpen, onRename, onFork
               setMenuOpen(false)
               if (id === 'rename') onRename(node.id, row.title)
               if (id === 'fork') onFork(node.id)
+              if (id === 'openDirectory') onOpenDirectory(node.id)
               if (id === 'archive') onArchive(node.id)
             }}
             portal

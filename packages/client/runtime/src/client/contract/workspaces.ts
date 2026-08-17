@@ -75,6 +75,14 @@ export interface IWorkspaces {
    */
   openPath(path: string): Promise<void>
   /**
+   * Open a session's on-disk artifact directory with the Host operating
+   * system's default application (Finder / Explorer / xdg-open hand-off).
+   * The Host resolves the directory from the session header and its
+   * persistence backend; a deployment without a native opener no-ops.
+   * @param sessionId - the session whose log directory to open.
+   */
+  openSessionDirectory(sessionId: SessionId): Promise<void>
+  /**
    * Rename a Workspace.
    * @param workspaceId - target workspace.
    * @param title - the new display title.

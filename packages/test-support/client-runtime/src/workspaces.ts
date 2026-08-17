@@ -240,4 +240,13 @@ export class TestWorkspaces implements IWorkspaces {
       draft.archivedSessionIds = [...draft.archivedSessionIds, sessionId]
     })
   }
+
+  /** Open a session's artifact directory (recorded; no-op in test support). */
+  async openSessionDirectory(sessionId: SessionId): Promise<void> {
+    this.calls.push({ method: 'openSessionDirectory', args: [sessionId] })
+    const stub = this.stubs.get('openSessionDirectory')
+    if (stub !== undefined) {
+      await (stub(sessionId) as Promise<void>)
+    }
+  }
 }
